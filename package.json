@@ -1,0 +1,36 @@
+{
+  "name": "eth-bulk-monitor-client-nodejs",
+  "version": "1.0.0",
+  "description": "Ethplorer bulk Monitor API nodejs client",
+  "main": "MonitorClient.js",
+  "devDependencies": {
+    "babel-eslint": "10.0.1",
+    "eslint": "4.19.1",
+    "eslint-config-airbnb": "16.1.0",
+    "eslint-plugin-import": "2.14.0",
+    "eslint-plugin-jsx-a11y": "6.1.2",
+    "eslint-plugin-meteor": "5.1.0",
+    "eslint-plugin-react": "7.12.3",
+    "husky": "1.3.1",
+    "less": "2.7.3",
+    "precise-commits": "1.0.2",
+    "pretty-quick": "1.10.0"
+  },
+  "scripts": {
+    "lint": "eslint ./imports ./server ./client ./*.js --ext js",
+    "lint-quiet": "eslint ./imports ./server ./client ./*.js --ext js --quiet",
+    "lint-jenkins": "eslint ./imports ./server ./client ./*.js --ext js -f checkstyle",
+    "lint-fix": "eslint ./imports ./server ./client ./*.js --ext js --fix",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amilabs/eth-bulk-monitor-client-nodejs.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/amilabs/eth-bulk-monitor-client-nodejs/issues"
+  },
+  "homepage": "https://github.com/amilabs/eth-bulk-monitor-client-nodejs#readme"
+}

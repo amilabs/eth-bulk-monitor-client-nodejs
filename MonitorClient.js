@@ -1,29 +1,17 @@
 const EventEmitter = require('events');
 const got = require('got');
 
+// API pool credentials: apiKey and poolId
+let credentials = {};
+
+// Known networks
+let networks = {
+    mainnet: 'https://api-mon.ethplorer.io',
+    kovan: 'https://kovan-api-mon.ethplorer.io',
+    custom: ''
+};
+
 class MonitorClient extends EventEmitter {
-    // API pool credentials: apiKey and poolId
-    credentials = {};
-
-    // Known networks
-    networks = {
-        mainnet: 'https://api-mon.ethplorer.io',
-        kovan: 'https://kovan-api-mon.ethplorer.io',
-        custom: ''
-    };
-
-    // Monitor API data
-    options = {
-        // Ethereum network
-        network: 'mainnet',
-        // Data request period
-        period: 300,
-        // How often to request updates
-        interval: 15000,
-        // Maximum errors in a row to unwatch
-        maxErrorCount: 6
-    };
-
     /**
      * Constructor.
      *
@@ -34,9 +22,19 @@ class MonitorClient extends EventEmitter {
      */
     constructor(apiKey, poolId, options) {
         super();
-        this.credentials = { apiKey, poolId };
+        this.options = {
+            // Ethereum network
+            network: 'mainnet',
+            // Data request period (in seconds)
+            period: 300,
+            // How often to request updates (in seconds)
+            interval: 15,
+            // Maximum errors in a row to unwatch
+            maxErrorCount: 6
+        };
+        credentials = { apiKey, poolId };
         if (options) {
-            if (options.network && (this.networks[options.network])) {
+            if (options.network && (networks[options.network])) {
                 this.options.network = options.network;
                 if (this.options.network === 'custom') {
                     if (!options.uri) {
@@ -44,7 +42,7 @@ class MonitorClient extends EventEmitter {
                     }
                     this.uri = options.uri;
                 } else {
-                    this.uri = this.networks[options.network];
+                    this.uri = networks[options.network];
                 }
             } else {
                 throw new Error(`Unknown network ${options.network}`);
@@ -85,7 +83,7 @@ class MonitorClient extends EventEmitter {
      * @returns {undefined}
      */
     watch() {
-        this._iId = setInterval(this.requestUpdates, this.options.interval);
+        this._iId = setInterval(this.requestUpdates, this.options.interval * 1000);
     }
 
     /**
@@ -104,11 +102,12 @@ class MonitorClient extends EventEmitter {
      */
     async requestUpdates() {
         try {
-            const data = await got(`${this.uri}/getPoolLastOperations/${this.credentials.poolId}?apiKey=${this.credentials.apiKey}&period=${this.options.period}`);
+            const data = await got(`${this.uri}/getPoolLastOperations/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${this.options.period}`);
             // todo
         } catch (e) {
             this.errors++;
             if (this.errors >= this.options.maxErrorCount) {
+                this.errors = 0;
                 clearInterval(this._iId);
                 this.emit('unwatched', e.message);
             }
@@ -124,3 +123,5 @@ class MonitorClient extends EventEmitter {
         // todo
     }
 }
+
+module.exports = MonitorClient;

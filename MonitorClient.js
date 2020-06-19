@@ -83,7 +83,7 @@ class MonitorClient extends EventEmitter {
      * @returns {undefined}
      */
     watch() {
-        this._iId = setInterval(this.requestUpdates, this.options.interval * 1000);
+        this._iId = setInterval(this.intervalHandler(this), this.options.interval * 1000);
     }
 
     /**
@@ -100,10 +100,38 @@ class MonitorClient extends EventEmitter {
      *
      * @returns {undefined}
      */
-    async requestUpdates() {
+    intervalHandler(_this) {
+        return async () => {
+            const transactionsData = await _this.requestUpdates('getPoolLastTransactions');
+            const operationsData = await _this.requestUpdates('getPoolLastOperations');
+            if (transactionsData) {
+                for (let address in transactionsData) {
+                    this.emit('data', { address, data: transactionsData, type: 'transaction' });
+                }
+            }
+            if (operationsData) {
+                for (let address in operationsData) {
+                    this.emit('data', { address, data: operationsData, type: 'operation' });
+                }
+            }
+        };
+    }
+
+    /**
+     *
+     * @returns {undefined}
+     */
+    async requestUpdates(method) {
+        let result = null;
+        if (['getPoolLastTransactions', 'getPoolLastOperations'].indexOf(method) < 0) {
+            throw new Error(`Unknown API method ${method}`);
+        }
         try {
-            const data = await got(`${this.uri}/getPoolLastOperations/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${this.options.period}`);
-            // todo
+            const requestUrl = `${this.uri}/${method}/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${this.options.period}`;
+            const data = await got(requestUrl);
+            if (data && data.body) {
+                result = JSON.parse(data.body);
+            }
         } catch (e) {
             this.errors++;
             if (this.errors >= this.options.maxErrorCount) {
@@ -112,6 +140,7 @@ class MonitorClient extends EventEmitter {
                 this.emit('unwatched', e.message);
             }
         }
+        return result;
     }
 
     /**

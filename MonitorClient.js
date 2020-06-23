@@ -45,15 +45,15 @@ class MonitorClient extends EventEmitter {
         if (options) {
             if (options.network && (networks[options.network])) {
                 this.options.network = options.network;
-                if (this.options.network === 'custom') {
+                if (options.network === 'custom') {
+                    if (!options.api) {
+                        throw new Error('Custom network requires Ethplorer API uri to be set in options');
+                    }
                     if (!options.monitor) {
-                        throw new Error('Custom network requires network API uri to be set in options');
+                        throw new Error('Custom network requires Bulk API uri to be set in options');
                     }
                     this.api = options.api;
                     this.monitor = options.monitor;
-                } else {
-                    this.api = networks[options.network].api;
-                    this.monitor = networks[options.network].monitor;
                 }
             } else {
                 throw new Error(`Unknown network ${options.network}`);
@@ -64,6 +64,10 @@ class MonitorClient extends EventEmitter {
             if (options.interval) {
                 this.options.interval = options.interval;
             }
+        }
+        if (this.options.network !== 'custom') {
+            this.api = networks[this.options.network].api;
+            this.monitor = networks[this.options.network].monitor;
         }
         this.errors = 0;
     }
@@ -108,8 +112,8 @@ class MonitorClient extends EventEmitter {
      * @returns {undefined}
      */
     watch() {
-        setImmediate(this.intervalHandler(this));
-        this._iId = setInterval(this.intervalHandler, this.options.interval * 1000);
+        setImmediate(this.intervalHandler());
+        this._iId = setInterval(this.intervalHandler(), this.options.interval * 1000);
     }
 
     /**
@@ -126,27 +130,29 @@ class MonitorClient extends EventEmitter {
      *
      * @returns {undefined}
      */
-    async intervalHandler() {
-        const transactionsData = await this.getUpdates('getPoolLastTransactions');
-        const operationsData = await this.getUpdates('getPoolLastOperations');
-        if (transactionsData) {
-            for (let address in transactionsData) {
-                const data = transactionsData[address];
-                for (let i = 0; i < data.length; i++) {
-                    this.emit('data', { address, data: data[i], type: 'transaction' });
+    intervalHandler() {
+        return async () => {
+            const transactionsData = await this.getUpdates('getPoolLastTransactions');
+            const operationsData = await this.getUpdates('getPoolLastOperations');
+            if (transactionsData) {
+                for (let address in transactionsData) {
+                    const data = transactionsData[address];
+                    for (let i = 0; i < data.length; i++) {
+                        this.emit('data', { address, data: data[i], type: 'transaction' });
+                    }
                 }
             }
-        }
-        if (operationsData) {
-            for (let address in operationsData) {
-                const data = operationsData[address];
-                for (let i = 0; i < data.length; i++) {
-                    const token = await this.getToken(data[i].contract);
-                    data[i].token = token;
-                    this.emit('data', { address, data: data[i], type: 'operation' });
+            if (operationsData) {
+                for (let address in operationsData) {
+                    const data = operationsData[address];
+                    for (let i = 0; i < data.length; i++) {
+                        const token = await this.getToken(data[i].contract);
+                        data[i].token = token;
+                        this.emit('data', { address, data: data[i], type: 'operation' });
+                    }
                 }
             }
-        }
+        };
     }
 
     async getToken(address) {

@@ -20,6 +20,9 @@ let networks = {
 
 const tokensCache = {};
 
+// Last unwatch event timestamp
+let lastUnwatchTs = 0;
+
 class MonitorClient extends EventEmitter {
     /**
      * Constructor.
@@ -132,24 +135,34 @@ class MonitorClient extends EventEmitter {
      */
     intervalHandler() {
         return async () => {
-            const transactionsData = await this.getUpdates('getPoolLastTransactions');
-            const operationsData = await this.getUpdates('getPoolLastOperations');
-            if (transactionsData) {
-                for (let address in transactionsData) {
-                    const data = transactionsData[address];
-                    for (let i = 0; i < data.length; i++) {
-                        this.emit('data', { address, data: data[i], type: 'transaction' });
+            try {
+                const transactionsData = await this.getTransactions(lastUnwatchTs);
+                if (transactionsData) {
+                    for (let address in transactionsData) {
+                        const data = transactionsData[address];
+                        for (let i = 0; i < data.length; i++) {
+                            this.emit('data', { address, data: data[i], type: 'transaction' });
+                        }
                     }
                 }
-            }
-            if (operationsData) {
-                for (let address in operationsData) {
-                    const data = operationsData[address];
-                    for (let i = 0; i < data.length; i++) {
-                        const token = await this.getToken(data[i].contract);
-                        data[i].token = token;
-                        this.emit('data', { address, data: data[i], type: 'operation' });
+                const operationsData = await this.getOperations(lastUnwatchTs);
+                if (operationsData) {
+                    for (let address in operationsData) {
+                        const data = operationsData[address];
+                        for (let i = 0; i < data.length; i++) {
+                            const token = await this.getToken(data[i].contract);
+                            data[i].token = token;
+                            this.emit('data', { address, data: data[i], type: 'operation' });
+                        }
                     }
+                }
+            } catch (e) {
+                this.errors++;
+                if (this.errors >= this.options.maxErrorCount) {
+                    this.errors = 0;
+                    lastUnwatchTs = Date.now();
+                    clearInterval(this._iId);
+                    this.emit('unwatched', e.message);
                 }
             }
         };
@@ -157,26 +170,14 @@ class MonitorClient extends EventEmitter {
 
     async getToken(address) {
         if (tokensCache[address] === undefined) {
-            try {
-                let result = false;
-                const requestUrl = `${this.api}/getTokenInfo/${address.toString().toLowerCase()}?apiKey=${credentials.apiKey}`;
-                const data = await got(requestUrl);
-                if (data && data.body) {
-                    result = JSON.parse(data.body);
-                    JSON.stringify(result);
-                }
-                tokensCache[address] = result;
-            } catch (e) {
-                tokensCache[address] = false;
-                /*
-                this.errors++;
-                if (this.errors >= this.options.maxErrorCount) {
-                    this.errors = 0;
-                    clearInterval(this._iId);
-                    this.emit('unwatched', e.message);
-                }
-                */
+            let result = false;
+            const requestUrl = `${this.api}/getTokenInfo/${address.toString().toLowerCase()}?apiKey=${credentials.apiKey}`;
+            const data = await got(requestUrl);
+            if (data && data.body) {
+                result = JSON.parse(data.body);
+                JSON.stringify(result);
             }
+            tokensCache[address] = result;
         }
         return tokensCache[address];
     }
@@ -185,35 +186,36 @@ class MonitorClient extends EventEmitter {
      *
      * @returns {undefined}
      */
-    async getUpdates(method) {
+    async getUpdates(method, startTime = 0) {
         let result = null;
         if (['getPoolLastTransactions', 'getPoolLastOperations'].indexOf(method) < 0) {
             throw new Error(`Unknown API method ${method}`);
         }
-        try {
-            const requestUrl = `${this.monitor}/${method}/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${this.options.period}`;
-            const data = await got(requestUrl);
-            if (data && data.body) {
-                result = JSON.parse(data.body);
-            }
-        } catch (e) {
-            this.errors++;
-            if (this.errors >= this.options.maxErrorCount) {
-                this.errors = 0;
-                clearInterval(this._iId);
-                this.emit('unwatched', e.message);
-            }
+        const period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
+        const requestUrl = `${this.monitor}/${method}/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${period}`;
+        const data = await got(requestUrl);
+        if (data && data.body) {
+            result = JSON.parse(data.body);
         }
         return result;
     }
 
     /**
      *
-     * @param {type} fromTime
-     * @returns {undefined}
+     * @param {type} startTime
+     * @returns {undefined|result}
      */
-    getTxs(fromTime) {
-        // todo
+    async getTransactions(startTime = 0) {
+        return this.getUpdates('getPoolLastTransactions', startTime);
+    }
+
+    /**
+     *
+     * @param {type} startTime
+     * @returns {undefined|result}
+     */
+    async getOperations(startTime = 0) {
+        return this.getUpdates('getPoolLastOperations', startTime);
     }
 }
 

@@ -76,12 +76,11 @@ class MonitorClient extends EventEmitter {
      */
     async addAddresses(addresses) {
         if (addresses && addresses.length) {
-            const addrStr = addresses.join();
             const requestUrl = `${this.monitor}/addPoolAddresses}`;
             const form = new FormData();
             form.append('apiKey', credentials.apiKey);
             form.append('poolId', credentials.poolId);
-            form.append('addresses', addrStr);
+            form.append('addresses', addresses.join());
             await got.post(requestUrl, { body: form });
         }
     }
@@ -94,12 +93,11 @@ class MonitorClient extends EventEmitter {
      */
     async removeAddresses(addresses) {
         if (addresses && addresses.length) {
-            const addrStr = addresses.join();
             const requestUrl = `${this.monitor}/deletePoolAddresses}`;
             const form = new FormData();
             form.append('apiKey', credentials.apiKey);
             form.append('poolId', credentials.poolId);
-            form.append('addresses', addrStr);
+            form.append('addresses', addresses.join());
             await got.post(requestUrl, { body: form });
         }
     }

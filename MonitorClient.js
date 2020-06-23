@@ -1,5 +1,6 @@
 const EventEmitter = require('events');
 const got = require('got');
+const FormData = require('form-data');
 
 // API pool credentials: apiKey and poolId
 let credentials = {};
@@ -73,8 +74,16 @@ class MonitorClient extends EventEmitter {
      * @param {string[]} addresses
      * @returns {undefined}
      */
-    addAddresses(addresses) {
-        // todo
+    async addAddresses(addresses) {
+        if (addresses && addresses.length) {
+            const addrStr = addresses.join();
+            const requestUrl = `${this.monitor}/addPoolAddresses}`;
+            const form = new FormData();
+            form.append('apiKey', credentials.apiKey);
+            form.append('poolId', credentials.poolId);
+            form.append('addresses', addrStr);
+            await got.post(requestUrl, { body: form });
+        }
     }
 
     /**
@@ -83,8 +92,16 @@ class MonitorClient extends EventEmitter {
      * @param {string[]} addresses
      * @returns {undefined}
      */
-    removeAddresses(addresses) {
-        // todo
+    async removeAddresses(addresses) {
+        if (addresses && addresses.length) {
+            const addrStr = addresses.join();
+            const requestUrl = `${this.monitor}/deletePoolAddresses}`;
+            const form = new FormData();
+            form.append('apiKey', credentials.apiKey);
+            form.append('poolId', credentials.poolId);
+            form.append('addresses', addrStr);
+            await got.post(requestUrl, { body: form });
+        }
     }
 
     /**
@@ -94,7 +111,7 @@ class MonitorClient extends EventEmitter {
      */
     watch() {
         setImmediate(this.intervalHandler(this));
-        this._iId = setInterval(this.intervalHandler(this), this.options.interval * 1000);
+        this._iId = setInterval(this.intervalHandler, this.options.interval * 1000);
     }
 
     /**
@@ -111,29 +128,27 @@ class MonitorClient extends EventEmitter {
      *
      * @returns {undefined}
      */
-    intervalHandler(_this) {
-        return async () => {
-            const transactionsData = await _this.getUpdates('getPoolLastTransactions');
-            const operationsData = await _this.getUpdates('getPoolLastOperations');
-            if (transactionsData) {
-                for (let address in transactionsData) {
-                    const data = transactionsData[address];
-                    for (let i = 0; i < data.length; i++) {
-                        this.emit('data', { address, data: data[i], type: 'transaction' });
-                    }
+    async intervalHandler() {
+        const transactionsData = await this.getUpdates('getPoolLastTransactions');
+        const operationsData = await this.getUpdates('getPoolLastOperations');
+        if (transactionsData) {
+            for (let address in transactionsData) {
+                const data = transactionsData[address];
+                for (let i = 0; i < data.length; i++) {
+                    this.emit('data', { address, data: data[i], type: 'transaction' });
                 }
             }
-            if (operationsData) {
-                for (let address in operationsData) {
-                    const data = operationsData[address];
-                    for (let i = 0; i < data.length; i++) {
-                        const token = await _this.getToken(data[i].contract);
-                        data[i].token = token;
-                        this.emit('data', { address, data: data[i], type: 'operation' });
-                    }
+        }
+        if (operationsData) {
+            for (let address in operationsData) {
+                const data = operationsData[address];
+                for (let i = 0; i < data.length; i++) {
+                    const token = await this.getToken(data[i].contract);
+                    data[i].token = token;
+                    this.emit('data', { address, data: data[i], type: 'operation' });
                 }
             }
-        };
+        }
     }
 
     async getToken(address) {

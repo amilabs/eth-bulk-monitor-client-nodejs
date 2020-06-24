@@ -2,9 +2,6 @@ const EventEmitter = require('events');
 const got = require('got');
 const FormData = require('form-data');
 
-// API pool credentials: apiKey and poolId
-let credentials = {};
-
 // Known networks
 const networks = {
     mainnet: {
@@ -17,8 +14,6 @@ const networks = {
     },
     custom: false
 };
-
-const tokensCache = {};
 
 // Last unwatch event timestamp
 let lastUnwatchTs = 0;
@@ -44,7 +39,9 @@ class MonitorClient extends EventEmitter {
             // Maximum errors in a row to unwatch
             maxErrorCount: 6
         };
-        credentials = { apiKey, poolId };
+        this.tokensCache = {};
+        // API pool credentials: apiKey and poolId
+        this.credentials = { apiKey, poolId };
         if (options) {
             if (options.network && (networks[options.network])) {
                 this.options.network = options.network;
@@ -85,8 +82,8 @@ class MonitorClient extends EventEmitter {
         if (addresses && addresses.length) {
             const requestUrl = `${this.monitor}/addPoolAddresses}`;
             const form = new FormData();
-            form.append('apiKey', credentials.apiKey);
-            form.append('poolId', credentials.poolId);
+            form.append('apiKey', this.credentials.apiKey);
+            form.append('poolId', this.credentials.poolId);
             form.append('addresses', addresses.join());
             await got.post(requestUrl, { body: form });
         }
@@ -102,8 +99,8 @@ class MonitorClient extends EventEmitter {
         if (addresses && addresses.length) {
             const requestUrl = `${this.monitor}/deletePoolAddresses}`;
             const form = new FormData();
-            form.append('apiKey', credentials.apiKey);
-            form.append('poolId', credentials.poolId);
+            form.append('apiKey', this.credentials.apiKey);
+            form.append('poolId', this.credentials.poolId);
             form.append('addresses', addresses.join());
             await got.post(requestUrl, { body: form });
         }
@@ -130,6 +127,7 @@ class MonitorClient extends EventEmitter {
     }
 
     /**
+     * Handles the watching interval.
      *
      * @returns {undefined}
      */
@@ -175,23 +173,33 @@ class MonitorClient extends EventEmitter {
         };
     }
 
+    /**
+     * Returns token data by token address.
+     *
+     * @param {string} address
+     * @returns {Object|bool}
+     */
     async getToken(address) {
-        if (tokensCache[address] === undefined) {
+        if (this.tokensCache[address] === undefined) {
             let result = false;
-            const requestUrl = `${this.api}/getTokenInfo/${address.toLowerCase()}?apiKey=${credentials.apiKey}`;
+            const { apiKey } = this.credentials;
+            const requestUrl = `${this.api}/getTokenInfo/${address.toLowerCase()}?apiKey=${apiKey}`;
             const data = await got(requestUrl);
             if (data && data.body) {
                 result = JSON.parse(data.body);
                 JSON.stringify(result);
             }
-            tokensCache[address] = result;
+            this.tokensCache[address] = result;
         }
-        return tokensCache[address];
+        return this.tokensCache[address];
     }
 
     /**
      *
-     * @returns {undefined}
+     *
+     * @param {string} method
+     * @param {int} startTime
+     * @returns {Object|null}
      */
     async getUpdates(method, startTime = 0) {
         let result = null;
@@ -199,7 +207,8 @@ class MonitorClient extends EventEmitter {
             throw new Error(`Unknown API method ${method}`);
         }
         const period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
-        const url = `${this.monitor}/${method}/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${period}`;
+        const { apiKey, poolId } = this.credentials;
+        const url = `${this.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
         const data = await got(url);
         if (data && data.body) {
             result = JSON.parse(data.body);
@@ -209,8 +218,8 @@ class MonitorClient extends EventEmitter {
 
     /**
      *
-     * @param {type} startTime
-     * @returns {undefined|result}
+     * @param {int} startTime
+     * @returns {Object|null}
      */
     async getTransactions(startTime = 0) {
         return this.getUpdates('getPoolLastTransactions', startTime);
@@ -218,8 +227,8 @@ class MonitorClient extends EventEmitter {
 
     /**
      *
-     * @param {type} startTime
-     * @returns {undefined|result}
+     * @param {int} startTime
+     * @returns {Object|null}
      */
     async getOperations(startTime = 0) {
         return this.getUpdates('getPoolLastOperations', startTime);

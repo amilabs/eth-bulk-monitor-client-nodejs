@@ -6,7 +6,7 @@ const FormData = require('form-data');
 let credentials = {};
 
 // Known networks
-let networks = {
+const networks = {
     mainnet: {
         api: 'https://api.ethplorer.io',
         monitor: 'https://api-mon.ethplorer.io'
@@ -138,23 +138,30 @@ class MonitorClient extends EventEmitter {
             try {
                 const transactionsData = await this.getTransactions(lastUnwatchTs);
                 if (transactionsData) {
-                    for (let address in transactionsData) {
+                    Object.keys(transactionsData).forEach((address) => {
                         const data = transactionsData[address];
                         for (let i = 0; i < data.length; i++) {
                             this.emit('data', { address, data: data[i], type: 'transaction' });
                         }
-                    }
+                    });
                 }
                 const operationsData = await this.getOperations(lastUnwatchTs);
                 if (operationsData) {
-                    for (let address in operationsData) {
+                    await Promise.all(Object.keys(operationsData).map((address) => {
                         const data = operationsData[address];
-                        for (let i = 0; i < data.length; i++) {
-                            const token = await this.getToken(data[i].contract);
-                            data[i].token = token;
-                            this.emit('data', { address, data: data[i], type: 'operation' });
-                        }
-                    }
+                        return Promise.all(data.map(addressInfo => this.getToken(addressInfo.contract)
+                            .then(token => this.emit(
+                                'data',
+                                {
+                                    address,
+                                    data: {
+                                        ...addressInfo,
+                                        token
+                                    },
+                                    type: 'operation'
+                                }
+                            ))));
+                    }));
                 }
             } catch (e) {
                 this.errors++;
@@ -171,7 +178,7 @@ class MonitorClient extends EventEmitter {
     async getToken(address) {
         if (tokensCache[address] === undefined) {
             let result = false;
-            const requestUrl = `${this.api}/getTokenInfo/${address.toString().toLowerCase()}?apiKey=${credentials.apiKey}`;
+            const requestUrl = `${this.api}/getTokenInfo/${address.toLowerCase()}?apiKey=${credentials.apiKey}`;
             const data = await got(requestUrl);
             if (data && data.body) {
                 result = JSON.parse(data.body);
@@ -192,8 +199,8 @@ class MonitorClient extends EventEmitter {
             throw new Error(`Unknown API method ${method}`);
         }
         const period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
-        const requestUrl = `${this.monitor}/${method}/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${period}`;
-        const data = await got(requestUrl);
+        const url = `${this.monitor}/${method}/${credentials.poolId}?apiKey=${credentials.apiKey}&period=${period}`;
+        const data = await got(url);
         if (data && data.body) {
             result = JSON.parse(data.body);
         }

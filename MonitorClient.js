@@ -76,44 +76,57 @@ class MonitorClient extends EventEmitter {
      * Adds addresses to the pool.
      *
      * @param {string[]} addresses
-     * @returns {undefined}
+     * @returns {bool}
      */
     async addAddresses(addresses) {
+        let result = false;
         if (addresses && addresses.length) {
             const requestUrl = `${this.monitor}/addPoolAddresses}`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);
             form.append('addresses', addresses.join());
-            await got.post(requestUrl, { body: form });
+            const data = await got.post(requestUrl, { body: form });
+            if (data && data.body) {
+                result = true;
+            }
         }
+        return result;
     }
 
     /**
      * Removes addresses from the pool.
      *
      * @param {string[]} addresses
-     * @returns {undefined}
+     * @returns {bool}
      */
     async removeAddresses(addresses) {
+        let result = false;
         if (addresses && addresses.length) {
             const requestUrl = `${this.monitor}/deletePoolAddresses}`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);
             form.append('addresses', addresses.join());
-            await got.post(requestUrl, { body: form });
+            const data = await got.post(requestUrl, { body: form });
+            if (data && data.body) {
+                result = true;
+            }
         }
+        return result;
     }
 
     /**
      * Starts watching for address acitivity.
      *
-     * @returns {undefined}
+     * @returns {Promise}
      */
     watch() {
-        setImmediate(this.intervalHandler());
-        this._iId = setInterval(this.intervalHandler(), this.options.interval * 1000);
+        return (this.intervalHandler())().then(() => {
+            this._iId = setInterval(this.intervalHandler(), this.options.interval * 1000);
+            this.emit('watched', null);
+            return 'ok';
+        });
     }
 
     /**

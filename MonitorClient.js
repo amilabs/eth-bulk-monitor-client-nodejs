@@ -44,22 +44,33 @@ class MonitorClient extends EventEmitter {
         // API pool credentials: apiKey and poolId
         this.credentials = { apiKey, poolId };
         // Configure network services
-        if (this.options.network && (networks[this.options.network])) {
-            if (this.options.network === 'custom') {
-                if (!this.options.api) {
-                    throw new Error('Custom network requires Ethplorer API uri to be set in options');
-                }
-                if (!this.options.monitor) {
-                    throw new Error('Custom network requires Bulk API uri to be set in options');
-                }
-            } else {
-                this.options.api = networks[this.options.network].api;
-                this.options.monitor = networks[this.options.network].monitor;
-            }
-        } else {
+        if (!this.options.network || (networks[this.options.network] === undefined)) {
             throw new Error(`Unknown network ${this.options.network}`);
         }
+        if (this.options.network !== 'custom') {
+            this.options.api = networks[this.options.network].api;
+            this.options.monitor = networks[this.options.network].monitor;
+        }
+        if (!this.options.api) {
+            throw new Error('Custom network requires Ethplorer API uri to be set in options');
+        }
+        if (!this.options.monitor) {
+            throw new Error('Custom network requires Bulk API uri to be set in options');
+        }
         this.errors = 0;
+        this.state = {};
+    }
+
+    saveState() {
+        return this.state;
+    }
+
+    restoreState(state) {
+        this.state = state;
+    }
+
+    isBlockProcessed(blockNumber) {
+        return (this.state[blockNumber] !== undefined);
     }
 
     /**
@@ -137,33 +148,42 @@ class MonitorClient extends EventEmitter {
     intervalHandler() {
         return async () => {
             try {
-                const transactionsData = await this.getTransactions(lastUnwatchTs);
+                const blocksToAdd = [];
+                const [transactionsData, operationsData] = await Promise.all([
+                    this.getTransactions(lastUnwatchTs),
+                    this.getOperations(lastUnwatchTs)
+                ]);
                 if (transactionsData) {
                     Object.keys(transactionsData).forEach((address) => {
                         const data = transactionsData[address];
                         for (let i = 0; i < data.length; i++) {
-                            this.emit('data', { address, data: data[i], type: 'transaction' });
+                            if (data[i].blockNumber && !this.isBlockProcessed(data[i].blockNumber)) {
+                                this.emit('data', { address, data: data[i], type: 'transaction' });
+                                if (blocksToAdd.indexOf(data.blockNumber) < 0) {
+                                    blocksToAdd.push(data.blockNumber);
+                                }
+                            }
                         }
                     });
                 }
-                const operationsData = await this.getOperations(lastUnwatchTs);
                 if (operationsData) {
-                    await Promise.all(Object.keys(operationsData).map((address) => {
-                        const data = operationsData[address];
-                        return Promise.all(data.map(addressInfo => this.getToken(addressInfo.contract)
+                    await Promise.all(Object.keys(operationsData).map(address =>
+                        Promise.all(operationsData[address].map(operation => this.getToken(operation.contract)
                             .then(token => this.emit(
                                 'data',
                                 {
                                     address,
                                     data: {
-                                        ...addressInfo,
+                                        ...operation,
                                         token
                                     },
                                     type: 'operation'
                                 }
-                            ))));
-                    }));
+                            ))))));
                 }
+                blocksToAdd.forEach((block) => {
+                    this.state[block] = true;
+                });
             } catch (e) {
                 this.errors++;
                 if (this.errors >= this.options.maxErrorCount) {

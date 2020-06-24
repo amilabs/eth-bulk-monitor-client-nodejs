@@ -37,37 +37,27 @@ class MonitorClient extends EventEmitter {
             // How often to request updates (in seconds)
             interval: 15,
             // Maximum errors in a row to unwatch
-            maxErrorCount: 6
+            maxErrorCount: 6,
+            ...options
         };
         this.tokensCache = {};
         // API pool credentials: apiKey and poolId
         this.credentials = { apiKey, poolId };
-        if (options) {
-            if (options.network && (networks[options.network])) {
-                this.options.network = options.network;
-                if (options.network === 'custom') {
-                    if (!options.api) {
-                        throw new Error('Custom network requires Ethplorer API uri to be set in options');
-                    }
-                    if (!options.monitor) {
-                        throw new Error('Custom network requires Bulk API uri to be set in options');
-                    }
-                    this.api = options.api;
-                    this.monitor = options.monitor;
+        // Configure network services
+        if (this.options.network && (networks[this.options.network])) {
+            if (this.options.network === 'custom') {
+                if (!this.options.api) {
+                    throw new Error('Custom network requires Ethplorer API uri to be set in options');
+                }
+                if (!this.options.monitor) {
+                    throw new Error('Custom network requires Bulk API uri to be set in options');
                 }
             } else {
-                throw new Error(`Unknown network ${options.network}`);
+                this.options.api = networks[this.options.network].api;
+                this.options.monitor = networks[this.options.network].monitor;
             }
-            if (options.period) {
-                this.options.period = options.period;
-            }
-            if (options.interval) {
-                this.options.interval = options.interval;
-            }
-        }
-        if (this.options.network !== 'custom') {
-            this.api = networks[this.options.network].api;
-            this.monitor = networks[this.options.network].monitor;
+        } else {
+            throw new Error(`Unknown network ${this.options.network}`);
         }
         this.errors = 0;
     }
@@ -81,7 +71,7 @@ class MonitorClient extends EventEmitter {
     async addAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const requestUrl = `${this.monitor}/addPoolAddresses}`;
+            const requestUrl = `${this.options.monitor}/addPoolAddresses}`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);
@@ -103,7 +93,7 @@ class MonitorClient extends EventEmitter {
     async removeAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const requestUrl = `${this.monitor}/deletePoolAddresses}`;
+            const requestUrl = `${this.options.monitor}/deletePoolAddresses}`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);
@@ -196,7 +186,7 @@ class MonitorClient extends EventEmitter {
         if (this.tokensCache[address] === undefined) {
             let result = false;
             const { apiKey } = this.credentials;
-            const requestUrl = `${this.api}/getTokenInfo/${address.toLowerCase()}?apiKey=${apiKey}`;
+            const requestUrl = `${this.options.api}/getTokenInfo/${address.toLowerCase()}?apiKey=${apiKey}`;
             const data = await got(requestUrl);
             if (data && data.body) {
                 result = JSON.parse(data.body);
@@ -221,7 +211,7 @@ class MonitorClient extends EventEmitter {
         }
         const period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
         const { apiKey, poolId } = this.credentials;
-        const url = `${this.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
+        const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
         const data = await got(url);
         if (data && data.body) {
             result = JSON.parse(data.body);

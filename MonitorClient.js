@@ -169,17 +169,21 @@ class MonitorClient extends EventEmitter {
                 if (operationsData) {
                     await Promise.all(Object.keys(operationsData).map(address =>
                         Promise.all(operationsData[address].map(operation => this.getToken(operation.contract)
-                            .then(token => this.emit(
-                                'data',
-                                {
-                                    address,
-                                    data: {
-                                        ...operation,
-                                        token
-                                    },
-                                    type: 'operation'
+                            .then((token) => {
+                                if (operation.blockNumber && !this.isBlockProcessed(operation.blockNumber)) {
+                                    this.emit(
+                                        'data',
+                                        {
+                                            address,
+                                            data: {
+                                                ...operation,
+                                                token
+                                            },
+                                            type: 'operation'
+                                        }
+                                    );
                                 }
-                            ))))));
+                            })))));
                 }
                 blocksToAdd.forEach((block) => {
                     this.state[block] = true;

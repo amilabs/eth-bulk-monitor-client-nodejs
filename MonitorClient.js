@@ -58,10 +58,14 @@ class MonitorClient extends EventEmitter {
             throw new Error('Custom network requires Bulk API uri to be set in options');
         }
         this.errors = 0;
-        this.state = {};
+        // Watching state
+        this.state = {
+            lastBlock: 0,
+            blocks: {}
+        };
     }
 
-    saveState() {
+    async saveState() {
         return this.state;
     }
 
@@ -70,7 +74,7 @@ class MonitorClient extends EventEmitter {
     }
 
     isBlockProcessed(blockNumber) {
-        return (this.state[blockNumber] !== undefined);
+        return (this.state.blocks[blockNumber] !== undefined);
     }
 
     /**
@@ -159,8 +163,8 @@ class MonitorClient extends EventEmitter {
                         for (let i = 0; i < data.length; i++) {
                             if (data[i].blockNumber && !this.isBlockProcessed(data[i].blockNumber)) {
                                 this.emit('data', { address, data: data[i], type: 'transaction' });
-                                if (blocksToAdd.indexOf(data.blockNumber) < 0) {
-                                    blocksToAdd.push(data.blockNumber);
+                                if (blocksToAdd.indexOf(data[i].blockNumber) < 0) {
+                                    blocksToAdd.push(data[i].blockNumber);
                                 }
                             }
                         }
@@ -171,22 +175,19 @@ class MonitorClient extends EventEmitter {
                         Promise.all(operationsData[address].map(operation => this.getToken(operation.contract)
                             .then((token) => {
                                 if (operation.blockNumber && !this.isBlockProcessed(operation.blockNumber)) {
-                                    this.emit(
-                                        'data',
-                                        {
-                                            address,
-                                            data: {
-                                                ...operation,
-                                                token
-                                            },
-                                            type: 'operation'
-                                        }
-                                    );
+                                    const data = { ...operation, token };
+                                    this.emit('data', { address, data, type: 'operation' });
+                                    if (blocksToAdd.indexOf(operation.blockNumber) < 0) {
+                                        blocksToAdd.push(operation.blockNumber);
+                                    }
                                 }
                             })))));
                 }
                 blocksToAdd.forEach((block) => {
-                    this.state[block] = true;
+                    if (this.state.lastBlock < block) {
+                        this.state.lastBlock = block;
+                    }
+                    this.state.blocks[block] = true;
                 });
             } catch (e) {
                 this.errors++;

@@ -183,12 +183,15 @@ class MonitorClient extends EventEmitter {
                                 }
                             })))));
                 }
-                blocksToAdd.forEach((block) => {
-                    if (this.state.lastBlock < block) {
-                        this.state.lastBlock = block;
-                    }
-                    this.state.blocks[block] = true;
-                });
+                if (blocksToAdd.length) {
+                    blocksToAdd.forEach((block) => {
+                        if (this.state.lastBlock < block) {
+                            this.state.lastBlock = block;
+                        }
+                        this.state.blocks[block] = true;
+                    });
+                    this.emit('stateChanged', this.state);
+                }
             } catch (e) {
                 this.errors++;
                 if (this.errors >= this.options.maxErrorCount) {

@@ -86,7 +86,7 @@ class MonitorClient extends EventEmitter {
     async addAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const requestUrl = `${this.options.monitor}/addPoolAddresses}`;
+            const requestUrl = `${this.options.monitor}/addPoolAddresses`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);
@@ -108,7 +108,7 @@ class MonitorClient extends EventEmitter {
     async removeAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const requestUrl = `${this.options.monitor}/deletePoolAddresses}`;
+            const requestUrl = `${this.options.monitor}/deletePoolAddresses`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);

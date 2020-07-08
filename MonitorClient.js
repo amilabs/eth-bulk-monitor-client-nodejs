@@ -176,6 +176,13 @@ class MonitorClient extends EventEmitter {
                             .then((token) => {
                                 if (operation.blockNumber && !this.isBlockProcessed(operation.blockNumber)) {
                                     const data = { ...operation, token };
+                                    if (data.token) {
+                                        data.rawValue = data.value;
+                                        data.value = data.rawValue / (10 ** data.token.decimals);
+                                        if (data.token.rate) {
+                                            data.usdValue = parseFloat((data.value * data.token.rate).toFixed(2));
+                                        }
+                                    }
                                     this.emit('data', { address, data, type: 'operation' });
                                     if (blocksToAdd.indexOf(operation.blockNumber) < 0) {
                                         blocksToAdd.push(operation.blockNumber);
@@ -193,6 +200,7 @@ class MonitorClient extends EventEmitter {
                     this.emit('stateChanged', this.state);
                 }
             } catch (e) {
+                console.error(e.message);
                 this.errors++;
                 if (this.errors >= this.options.maxErrorCount) {
                     this.errors = 0;
@@ -217,8 +225,15 @@ class MonitorClient extends EventEmitter {
             const requestUrl = `${this.options.api}/getTokenInfo/${address.toLowerCase()}?apiKey=${apiKey}`;
             const data = await got(requestUrl);
             if (data && data.body) {
-                result = JSON.parse(data.body);
-                JSON.stringify(result);
+                const tokenData = JSON.parse(data.body);
+                if (tokenData) {
+                    result = {
+                        name: tokenData.name,
+                        symbol: tokenData.symbol,
+                        decimals: tokenData.decimals,
+                        rate: tokenData.price && tokenData.price.rate ? tokenData.price.rate : false
+                    };
+                }
             }
             this.tokensCache[address] = result;
         }

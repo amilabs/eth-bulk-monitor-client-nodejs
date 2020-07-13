@@ -18,6 +18,8 @@ const networks = {
 // Last unwatch event timestamp
 let lastUnwatchTs = 0;
 
+const ETHAddress = '0x0000000000000000000000000000000000000000';
+
 class MonitorClient extends EventEmitter {
     /**
      * Constructor.
@@ -158,13 +160,20 @@ class MonitorClient extends EventEmitter {
                     this.getOperations(lastUnwatchTs)
                 ]);
                 if (transactionsData) {
+                    const ETHData = await this.getToken(ETHAddress);
+                    console.log(ETHData);
                     Object.keys(transactionsData).forEach((address) => {
-                        const data = transactionsData[address];
-                        for (let i = 0; i < data.length; i++) {
-                            if (data[i].blockNumber && !this.isBlockProcessed(data[i].blockNumber)) {
-                                this.emit('data', { address, data: data[i], type: 'transaction' });
-                                if (blocksToAdd.indexOf(data[i].blockNumber) < 0) {
-                                    blocksToAdd.push(data[i].blockNumber);
+                        const txData = transactionsData[address];
+                        for (let i = 0; i < txData.length; i++) {
+                            const data = { ...txData[i] };
+                            if (ETHData && ETHData.rate) {
+                                data.rate = ETHData.rate;
+                                data.usdValue = parseFloat((data.value * ETHData.rate).toFixed(2));
+                            }
+                            if (data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
+                                this.emit('data', { address, data, type: 'transaction' });
+                                if (blocksToAdd.indexOf(data.blockNumber) < 0) {
+                                    blocksToAdd.push(data.blockNumber);
                                 }
                             }
                         }

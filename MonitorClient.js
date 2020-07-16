@@ -40,9 +40,14 @@ class MonitorClient extends EventEmitter {
             interval: 15,
             // Maximum errors in a row to unwatch
             maxErrorCount: 6,
+            // Number of cache lock checks
+            cacheLockCheckLimit: 30,
             ...options
         };
+        // Token data will be stored here
         this.tokensCache = {};
+        // Used to lock token cache
+        this.tokensCacheLocks = {};
         // API pool credentials: apiKey and poolId
         this.credentials = { apiKey, poolId };
         // Configure network services
@@ -228,10 +233,27 @@ class MonitorClient extends EventEmitter {
      * @returns {Object|bool}
      */
     async getToken(address) {
+        address = address.toLowerCase();
+
+        if (this.tokensCacheLocks[address]) {
+            // If cache locked then wait repeatedly 0.1s for unlock
+            let lockCheckCount = 0;
+            if (this.tokensCacheLocks[address]) {
+                while (this.tokensCacheLocks[address]) {
+                    await new Promise((resolve) => { setTimeout(() => resolve(), 100); });
+                    lockCheckCount++;
+                    if (lockCheckCount >= this.options.cacheLockCheckLimit) {
+                        // No data on timeout
+                        return {};
+                    }
+                }
+            }
+        }
         if (this.tokensCache[address] === undefined) {
+            this.tokensCacheLocks[address] = true;
             let result = false;
             const { apiKey } = this.credentials;
-            const requestUrl = `${this.options.api}/getTokenInfo/${address.toLowerCase()}?apiKey=${apiKey}`;
+            const requestUrl = `${this.options.api}/getTokenInfo/${address}?apiKey=${apiKey}`;
             const data = await got(requestUrl);
             if (data && data.body) {
                 const tokenData = JSON.parse(data.body);
@@ -245,6 +267,7 @@ class MonitorClient extends EventEmitter {
                 }
             }
             this.tokensCache[address] = result;
+            delete this.tokensCacheLocks[address];
         }
         return this.tokensCache[address];
     }

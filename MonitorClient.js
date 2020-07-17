@@ -147,7 +147,9 @@ class MonitorClient extends EventEmitter {
      * @returns {undefined}
      */
     unwatch() {
+        lastUnwatchTs = Date.now();
         clearInterval(this._iId);
+        this._iId = 0;
         this.emit('unwatched', null);
     }
 
@@ -176,7 +178,9 @@ class MonitorClient extends EventEmitter {
                                 data.usdValue = parseFloat((data.value * ETHData.rate).toFixed(2));
                             }
                             if (data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
-                                this.emit('data', { address, data, type: 'transaction' });
+                                if (this._iId) {
+                                    this.emit('data', { address, data, type: 'transaction' });
+                                }
                                 if (blocksToAdd.indexOf(data.blockNumber) < 0) {
                                     blocksToAdd.push(data.blockNumber);
                                 }
@@ -197,7 +201,9 @@ class MonitorClient extends EventEmitter {
                                             data.usdValue = parseFloat((data.value * data.token.rate).toFixed(2));
                                         }
                                     }
-                                    this.emit('data', { address, data, type: 'operation' });
+                                    if (this._iId) {
+                                        this.emit('data', { address, data, type: 'operation' });
+                                    }
                                     if (blocksToAdd.indexOf(operation.blockNumber) < 0) {
                                         blocksToAdd.push(operation.blockNumber);
                                     }
@@ -218,9 +224,7 @@ class MonitorClient extends EventEmitter {
                 this.errors++;
                 if (this.errors >= this.options.maxErrorCount) {
                     this.errors = 0;
-                    lastUnwatchTs = Date.now();
-                    clearInterval(this._iId);
-                    this.emit('unwatched', e.message);
+                    this.unwatch();
                 }
             }
         };

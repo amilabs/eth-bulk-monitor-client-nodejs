@@ -168,7 +168,6 @@ class MonitorClient extends EventEmitter {
                 ]);
                 if (transactionsData) {
                     const ETHData = await this.getToken(ETHAddress);
-                    console.log(ETHData);
                     Object.keys(transactionsData).forEach((address) => {
                         const txData = transactionsData[address];
                         for (let i = 0; i < txData.length; i++) {
@@ -220,7 +219,6 @@ class MonitorClient extends EventEmitter {
                     this.emit('stateChanged', this.state);
                 }
             } catch (e) {
-                console.error(e.message);
                 this.errors++;
                 if (this.errors >= this.options.maxErrorCount) {
                     this.errors = 0;

@@ -21,7 +21,7 @@
     "lint-quiet": "eslint ./imports ./server ./client ./*.js --ext js --quiet",
     "lint-jenkins": "eslint ./imports ./server ./client ./*.js --ext js -f checkstyle",
     "lint-fix": "eslint ./imports ./server ./client ./*.js --ext js --fix",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha  --timeout 10000"
   },
   "repository": {
     "type": "git",
@@ -34,6 +34,7 @@
   },
   "homepage": "https://github.com/amilabs/eth-bulk-monitor-client-nodejs#readme",
   "dependencies": {
+    "express": "^4.17.1",
     "form-data": "3.0.0",
     "got": "11.3.0"
   }

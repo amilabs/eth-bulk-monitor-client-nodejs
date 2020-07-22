@@ -19,7 +19,11 @@ const APIKey = 'EK-XXXX-XXXX';
  */
 const PoolId = 'XXXXX-XXX-XXX-XXXXXXXX';
 
-
+/**
+ * Initialize client with 20 seconds watching interval
+ *
+ * @type monitorClient
+ */
 const monitor = new monitorClient(APIKey, PoolId, { interval: 20 });
 
 /**

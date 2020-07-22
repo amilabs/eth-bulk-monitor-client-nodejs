@@ -24,8 +24,6 @@ const options = {
 
 const badOptions = { ...options, poolId: 'badPoolId' };
 
-let savedState = {};
-
 describe('MonitorClient test', () => {
     before(() => {
         ws.route(`/getTokenInfo/${ETHAddress}`)
@@ -99,8 +97,7 @@ describe('MonitorClient test', () => {
         });
         mon.on("stateChanged", async (state) => {
             assert.equal(state.lastBlock, 1000);
-            assert.equal(state.blocks['1000'], true);
-            savedState = await mon.saveState();
+            assert.equal(state.blocks['1000'], true);           
             mon.unwatch();
         });
         mon.on("unwatched", () => {
@@ -114,6 +111,12 @@ describe('MonitorClient test', () => {
     it('should restore the saved state', (done) => {
         addNextBlockTx(A1, A2, C0, 500, 1);
         const mon = new lib('apiKey', options);
+        const savedState = {
+            lastBlock: 1000,
+            blocks: {
+                1000: true
+            }
+        }
         mon.restoreState(savedState);
         mon.on("data", (eventData) => {
             assert.equal(eventData.address, A1);

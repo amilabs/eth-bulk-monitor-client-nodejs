@@ -193,7 +193,9 @@ class MonitorClient extends EventEmitter {
                     await Promise.all(Object.keys(operationsData).map(address =>
                         Promise.all(operationsData[address].map(operation => this.getToken(operation.contract)
                             .then((token) => {
-                                if (operation.blockNumber && !this.isBlockProcessed(operation.blockNumber)) {
+                                const { blockNumber } = operation;
+                                const validOpType = (['approve'].indexOf(operation.type) < 0);
+                                if (blockNumber && !this.isBlockProcessed(blockNumber) && validOpType) {
                                     const data = { ...operation, token };
                                     if (data.token && (data.token.decimals !== undefined)) {
                                         data.rawValue = data.value;
@@ -205,8 +207,8 @@ class MonitorClient extends EventEmitter {
                                     if (this.watching) {
                                         this.emit('data', { address, data, type: 'operation' });
                                     }
-                                    if (blocksToAdd.indexOf(operation.blockNumber) < 0) {
-                                        blocksToAdd.push(operation.blockNumber);
+                                    if (blocksToAdd.indexOf(blockNumber) < 0) {
+                                        blocksToAdd.push(blockNumber);
                                     }
                                 }
                             })))));

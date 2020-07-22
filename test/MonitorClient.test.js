@@ -2,7 +2,6 @@ const assert = require('assert');
 const lib = require('../MonitorClient.js');
 const express = require('express');
 const ws = express();
-const server = ws.listen(63101);
 
 const ETHAddress = "0x0000000000000000000000000000000000000000";
 const A1 = "0x0000000000000000000000000000000000000001";
@@ -15,12 +14,15 @@ const operations = {};
 let blockNumber = 1000;
 
 const options = {
+    poolId: 'poolId',
     interval: 1,
     network: 'custom',
     api: 'http://127.0.0.1:63101',
     monitor: 'http://127.0.0.1:63101',
     maxErrorCount: 3
 };
+
+const badOptions = { ...options, poolId: 'badPoolId' };
 
 let savedState = {};
 
@@ -59,12 +61,13 @@ describe('MonitorClient test', () => {
             .get((req, res) => {
                 res.json(transactions);
             });
+        this.server = ws.listen(63101);
     });
 
-    after(() => server.close());
+    after(() => this.server.close());
 
     it('getTokenInfo should return correct ETH data', async () => {
-        const mon = new lib('apiKey', 'poolId', options);
+        const mon = new lib('apiKey', options);
         const data = await mon.getToken(ETHAddress);
         assert.equal(data.name, "Ethereum");
         assert.equal(data.symbol, "ETH");
@@ -75,7 +78,7 @@ describe('MonitorClient test', () => {
 
     it('watch() should fire the watched, data, stateChanged and unwatch events', (done) => {
         addNextBlockTx(A1, A2, C0, 1000, 1.5);
-        const mon = new lib('apiKey', 'poolId', options);
+        const mon = new lib('apiKey', options);
         mon.on("watched", () => {
             assert.equal(true, true);
         });
@@ -110,7 +113,7 @@ describe('MonitorClient test', () => {
 
     it('should restore the saved state', (done) => {
         addNextBlockTx(A1, A2, C0, 500, 1);
-        const mon = new lib('apiKey', 'poolId', options);
+        const mon = new lib('apiKey', options);
         mon.restoreState(savedState);
         mon.on("data", (eventData) => {
             assert.equal(eventData.address, A1);
@@ -127,10 +130,9 @@ describe('MonitorClient test', () => {
         mon.watch();
     });
 
-
     it('should unwatch after maxErrorCount errors', (done) => {
         addNextBlockTx(A1, A2, C0, 500, 1);
-        const mon = new lib('apiKey', 'badPoolId', options);
+        const mon = new lib('apiKey', badOptions);
         mon.on("unwatched", () => {
             assert.equal(mon.errors, 3);
             delete mon;

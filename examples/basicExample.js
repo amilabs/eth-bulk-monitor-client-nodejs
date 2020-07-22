@@ -5,26 +5,11 @@
 const monitorClient = require('eth-bulk-monitor-client-nodejs');
 
 /**
- * Your Ethplorer API key
- *
- * @type String
- */
-const APIKey = 'EK-XXXX-XXXX';
-
-/**
- * You need to create an address pool first to use monitor
- * https://docs.ethplorer.io/monitor#tag/Bulk-API-Monitor-Endpoints/paths/~1createPool/post
- *
- * @type String
- */
-const PoolId = 'XXXXX-XXX-XXX-XXXXXXXX';
-
-/**
- * Initialize client with 20 seconds watching interval
+ * Initialize client
  *
  * @type monitorClient
  */
-const monitor = new monitorClient(APIKey, PoolId, { interval: 20 });
+const monitor = new monitorClient('put your API key here’');
 
 /**
  * Add some addresses to the pool

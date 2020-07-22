@@ -15,6 +15,17 @@ const networks = {
     custom: false
 };
 
+// Error messages
+const errorMessages = {
+    unkonwn_network: 'Unknown network',
+    custom_api_uri: 'Custom network requires Ethplorer API uri to be set in options',
+    custom_monitor_uri: 'Custom network requires Bulk API uri to be set in options',
+    no_pool_id: 'No poolId specified: set poolId option or create a new pool using createPool method',
+    invalid_state: 'Invalid state object',
+    request_failed: 'Request failed',
+    unknown_method: 'Unknown API method'
+};
+
 // Last unwatch event timestamp
 let lastUnwatchTs = 0;
 
@@ -25,11 +36,10 @@ class MonitorClient extends EventEmitter {
      * Constructor.
      *
      * @param {string} apiKey
-     * @param {string} poolId
      * @param {object} options
      * @returns {MonitorClient}
      */
-    constructor(apiKey, poolId, options) {
+    constructor(apiKey, options) {
         super();
         this.options = {
             // Ethereum network
@@ -37,13 +47,15 @@ class MonitorClient extends EventEmitter {
             // Data request period (in seconds)
             period: 300,
             // How often to request updates (in seconds)
-            interval: 15,
-            // Maximum errors in a row to unwatch
-            maxErrorCount: 6,
+            interval: 60,
+            // Maximum errors in a row to unwatch (0 for infinite)
+            maxErrorCount: 0,
             // Number of cache lock checks
             cacheLockCheckLimit: 100,
             ...options
         };
+        // Try to get poolId from options
+        const poolId = this.options.poolId ? this.options.poolId : false;
         // Token data will be stored here
         this.tokensCache = {};
         // Used to lock token cache
@@ -52,17 +64,17 @@ class MonitorClient extends EventEmitter {
         this.credentials = { apiKey, poolId };
         // Configure network services
         if (!this.options.network || (networks[this.options.network] === undefined)) {
-            throw new Error(`Unknown network ${this.options.network}`);
+            throw new Error(`${errorMessages.unknown_network} ${this.options.network}`);
         }
         if (this.options.network !== 'custom') {
             this.options.api = networks[this.options.network].api;
             this.options.monitor = networks[this.options.network].monitor;
         }
         if (!this.options.api) {
-            throw new Error('Custom network requires Ethplorer API uri to be set in options');
+            throw new Error(errorMessages.custom_api_uri);
         }
         if (!this.options.monitor) {
-            throw new Error('Custom network requires Bulk API uri to be set in options');
+            throw new Error(errorMessages.custom_monitor_uri);
         }
         this.errors = 0;
         // Watching state
@@ -72,36 +84,81 @@ class MonitorClient extends EventEmitter {
         };
     }
 
+    /**
+     * Returns current state.
+     *
+     * @returns {Promise}
+     */
     async saveState() {
         return this.state;
     }
 
+    /**
+     * Restores state from saved data.
+     *
+     * @param {Object} state
+     */
     restoreState(state) {
+        if (!state || (state.lastBlock === undefined)) {
+            throw new Error(errorMessages.invalid_state);
+        }
         this.state = state;
     }
 
+    /**
+     * Checks if the block was already processed.
+     *
+     * @param {int} blockNumber
+     * @returns {Boolean}
+     */
     isBlockProcessed(blockNumber) {
         return (this.state.blocks[blockNumber] !== undefined);
+    }
+
+    /**
+     * Creates a new pool.
+     *
+     * @param {string[]} addresses
+     * @returns {Boolean|string}
+     */
+    async createPool(addresses = null) {
+        const form = new FormData();
+        form.append('apiKey', this.credentials.apiKey);
+        if (addresses && addresses.length) {
+            form.append('addresses', addresses.join());
+        }
+        const result = await this.postBulkAPI('createPool', form);
+        return result.poolId;
+    }
+
+    /**
+     * Deletes current pool.
+     *
+     * @returns {Boolean}
+     */
+    async deletePool() {
+        const form = new FormData();
+        form.append('apiKey', this.credentials.apiKey);
+        form.append('poolId', this.credentials.poolId);
+        await this.postBulkAPI('deletePool', form);
+        return true;
     }
 
     /**
      * Adds addresses to the pool.
      *
      * @param {string[]} addresses
-     * @returns {bool}
+     * @returns {Boolean}
      */
     async addAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const requestUrl = `${this.options.monitor}/addPoolAddresses`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);
             form.append('addresses', addresses.join());
-            const data = await got.post(requestUrl, { body: form });
-            if (data && data.body) {
-                result = true;
-            }
+            await this.postBulkAPI('addPoolAddresses', form);
+            result = true;
         }
         return result;
     }
@@ -110,20 +167,17 @@ class MonitorClient extends EventEmitter {
      * Removes addresses from the pool.
      *
      * @param {string[]} addresses
-     * @returns {bool}
+     * @returns {Boolean}
      */
     async removeAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const requestUrl = `${this.options.monitor}/deletePoolAddresses`;
             const form = new FormData();
             form.append('apiKey', this.credentials.apiKey);
             form.append('poolId', this.credentials.poolId);
             form.append('addresses', addresses.join());
-            const data = await got.post(requestUrl, { body: form });
-            if (data && data.body) {
-                result = true;
-            }
+            await this.postBulkAPI('deletePoolAddresses', form);
+            result = true;
         }
         return result;
     }
@@ -134,6 +188,9 @@ class MonitorClient extends EventEmitter {
      * @returns {Promise}
      */
     watch() {
+        if (!this.credentials.poolId) {
+            throw new Error(errorMessages.no_pool_id);
+        }
         this.watching = true;
         return (this.intervalHandler())().then(() => {
             this._iId = setInterval(this.intervalHandler(), this.options.interval * 1000);
@@ -148,10 +205,12 @@ class MonitorClient extends EventEmitter {
      * @returns {undefined}
      */
     unwatch() {
-        lastUnwatchTs = Date.now();
-        clearInterval(this._iId);
-        this.watching = false;
-        this.emit('unwatched', null);
+        if (this.watching) {
+            lastUnwatchTs = Date.now();
+            clearInterval(this._iId);
+            this.watching = false;
+            this.emit('unwatched', null);
+        }
     }
 
     /**
@@ -169,15 +228,12 @@ class MonitorClient extends EventEmitter {
                     this.getOperations(lastUnwatchTs)
                 ]);
                 if (transactionsData) {
-                    const ETHData = await this.getToken(ETHAddress);
+                    const { rate } = await this.getToken(ETHAddress);
                     Object.keys(transactionsData).forEach((address) => {
                         const txData = transactionsData[address];
                         for (let i = 0; i < txData.length; i++) {
-                            const data = { ...txData[i] };
-                            if (ETHData && ETHData.rate) {
-                                data.rate = ETHData.rate;
-                                data.usdValue = parseFloat((data.value * ETHData.rate).toFixed(2));
-                            }
+                            const data = { ...txData[i], rate };
+                            data.usdValue = parseFloat((data.value * rate).toFixed(2));
                             if (data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
                                 if (this.watching) {
                                     this.emit('data', { address, data, type: 'transaction' });
@@ -199,7 +255,7 @@ class MonitorClient extends EventEmitter {
                                     const data = { ...operation, token };
                                     if (data.token && (data.token.decimals !== undefined)) {
                                         data.rawValue = data.value;
-                                        data.value = data.rawValue / (10 ** data.token.decimals);
+                                        data.value /= (10 ** data.token.decimals);
                                         if (data.token.rate) {
                                             data.usdValue = parseFloat((data.value * data.token.rate).toFixed(2));
                                         }
@@ -224,7 +280,8 @@ class MonitorClient extends EventEmitter {
                 }
             } catch (e) {
                 this.errors++;
-                if (this.errors >= this.options.maxErrorCount) {
+                // this.emit('error', e);
+                if (this.errors && (this.errors >= this.options.maxErrorCount)) {
                     this.unwatch();
                     this.errors = 0;
                 }
@@ -264,11 +321,13 @@ class MonitorClient extends EventEmitter {
             if (data && data.body) {
                 const tokenData = JSON.parse(data.body);
                 if (tokenData) {
+                    const { name, symbol, decimals } = tokenData;
+                    const rate = tokenData.price && tokenData.price.rate ? tokenData.price.rate : false;
                     result = {
-                        name: tokenData.name,
-                        symbol: tokenData.symbol,
-                        decimals: tokenData.decimals,
-                        rate: tokenData.price && tokenData.price.rate ? tokenData.price.rate : false
+                        name,
+                        symbol,
+                        decimals,
+                        rate
                     };
                 }
             }
@@ -279,28 +338,74 @@ class MonitorClient extends EventEmitter {
     }
 
     /**
+     * Parses data from Bulk API, checks for errors
      *
+     * @param {object} data
+     * @returns {Object|null}
+     */
+    processBulkAPIData(data) {
+        if (data && data.body) {
+            const poolData = JSON.parse(data.body);
+            if (poolData.error) {
+                throw new Error(poolData.error.message);
+            }
+            return poolData;
+        }
+        return null;
+    }
+
+    /**
+     * Asks Bulk API for updates
      *
      * @param {string} method
      * @param {int} startTime
      * @returns {Object|null}
      */
     async getUpdates(method, startTime = 0) {
+        if (!this.credentials.poolId) {
+            throw new Error(errorMessages.no_pool_id);
+        }
         let result = null;
         if (['getPoolLastTransactions', 'getPoolLastOperations'].indexOf(method) < 0) {
-            throw new Error(`Unknown API method ${method}`);
+            throw new Error(`${errorMessages.unknown_method} ${method}`);
         }
         const period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
-        const data = await got(url);
-        if (data && data.body) {
-            result = JSON.parse(data.body);
+        try {
+            result = this.processBulkAPIData(await got(url));
+        } catch (e) {
+            throw new Error(`${errorMessages.request_failed} ${e.message}`);
         }
         return result;
     }
 
     /**
+     * Makes post request to Bulk API
+     *
+     * @param {string} method
+     * @param {object} form
+     * @returns {Object|null}
+     */
+    async postBulkAPI(method, form) {
+        if (['createPool', 'deletePool', 'addPoolAddresses', 'deletePoolAddresses'].indexOf(method) < 0) {
+            throw new Error(`${errorMessages.unknown_method} ${method}`);
+        }
+        if ((method !== 'createPool') && !this.credentials.poolId) {
+            throw new Error(errorMessages.no_pool_id);
+        }
+        let result = null;
+        try {
+            const url = `${this.options.monitor}/${method}`;
+            result = this.processBulkAPIData(await got.post(url, { body: form }));
+        } catch (e) {
+            throw new Error(`${errorMessages.request_failed} ${e.message}`);
+        }
+        return result;
+    }
+
+    /**
+     * Returns last tracked transactions since the startTime
      *
      * @param {int} startTime
      * @returns {Object|null}
@@ -310,6 +415,7 @@ class MonitorClient extends EventEmitter {
     }
 
     /**
+     * Returns last tracked operations since the startTime
      *
      * @param {int} startTime
      * @returns {Object|null}

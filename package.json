@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/amilabs/eth-bulk-monitor-client-nodejs#readme",
   "dependencies": {
-    "express": "^4.17.1",
+    "express": "4.17.1",
     "form-data": "3.0.0",
     "got": "11.3.0"
   }

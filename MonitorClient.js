@@ -177,7 +177,7 @@ class MonitorClient extends EventEmitter {
         }
         this.watching = true;
         return (this.intervalHandler())().then(() => {
-            this._iId = setInterval(this.intervalHandler(), this.options.interval * 1000);
+            setTimeout(this.intervalHandler(), this.options.interval * 1000);
             this.emit('watched', null);
             return 'ok';
         });
@@ -191,7 +191,6 @@ class MonitorClient extends EventEmitter {
     unwatch() {
         if (this.watching) {
             lastUnwatchTs = Date.now();
-            clearInterval(this._iId);
             this.watching = false;
             this.emit('unwatched', null);
         }
@@ -270,6 +269,7 @@ class MonitorClient extends EventEmitter {
                     this.errors = 0;
                 }
             }
+            setTimeout(this.intervalHandler(), this.options.interval * 1000);
         };
     }
 

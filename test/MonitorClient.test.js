@@ -116,7 +116,7 @@ describe('MonitorClient test', () => {
             blocks: {
                 1000: true
             }
-        }
+        };
         mon.restoreState(savedState);
         mon.on("data", (eventData) => {
             assert.equal(eventData.address, A1);
@@ -144,8 +144,6 @@ describe('MonitorClient test', () => {
         mon.watch();
     });
 });
-
-
 
 function addNextBlockTx(from, to, contract, value, valueETH) {
     if (operations[from] === undefined) {

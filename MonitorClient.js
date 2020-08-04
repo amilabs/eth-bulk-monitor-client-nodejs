@@ -23,7 +23,8 @@ const errorMessages = {
     no_pool_id: 'No poolId specified: set poolId option or create a new pool using createPool method',
     invalid_state: 'Invalid state object',
     request_failed: 'Request failed:',
-    unknown_method: 'Unknown API method'
+    unknown_method: 'Unknown API method',
+    already_watching: 'Watching is already started, use unwatch first'
 };
 
 // Last unwatch event timestamp
@@ -174,6 +175,9 @@ class MonitorClient extends EventEmitter {
     watch() {
         if (!this.credentials.poolId) {
             throw new Error(errorMessages.no_pool_id);
+        }
+        if (this.watching) {
+            throw new Error(errorMessages.already_watching);
         }
         this.watching = true;
         return (this.intervalHandler())().then(() => {

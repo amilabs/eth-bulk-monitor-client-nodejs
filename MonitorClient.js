@@ -22,7 +22,7 @@ const errorMessages = {
     custom_monitor_uri: 'Custom network requires Bulk API uri to be set in options',
     no_pool_id: 'No poolId specified: set poolId option or create a new pool using createPool method',
     invalid_state: 'Invalid state object',
-    request_failed: 'Request failed',
+    request_failed: 'Request failed:',
     unknown_method: 'Unknown API method'
 };
 
@@ -121,13 +121,8 @@ class MonitorClient extends EventEmitter {
      * @param {string[]} addresses
      * @returns {Boolean|string}
      */
-    async createPool(addresses = null) {
-        const form = new FormData();
-        form.append('apiKey', this.credentials.apiKey);
-        if (addresses && addresses.length) {
-            form.append('addresses', addresses.join());
-        }
-        const result = await this.postBulkAPI('createPool', form);
+    async createPool(addresses = []) {
+        const result = await this.postBulkAPI('createPool', { addresses });
         return result.poolId;
     }
 
@@ -137,10 +132,7 @@ class MonitorClient extends EventEmitter {
      * @returns {Boolean}
      */
     async deletePool() {
-        const form = new FormData();
-        form.append('apiKey', this.credentials.apiKey);
-        form.append('poolId', this.credentials.poolId);
-        await this.postBulkAPI('deletePool', form);
+        await this.postBulkAPI('deletePool');
         return true;
     }
 
@@ -153,11 +145,7 @@ class MonitorClient extends EventEmitter {
     async addAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const form = new FormData();
-            form.append('apiKey', this.credentials.apiKey);
-            form.append('poolId', this.credentials.poolId);
-            form.append('addresses', addresses.join());
-            await this.postBulkAPI('addPoolAddresses', form);
+            await this.postBulkAPI('addPoolAddresses', { addresses });
             result = true;
         }
         return result;
@@ -172,11 +160,7 @@ class MonitorClient extends EventEmitter {
     async removeAddresses(addresses) {
         let result = false;
         if (addresses && addresses.length) {
-            const form = new FormData();
-            form.append('apiKey', this.credentials.apiKey);
-            form.append('poolId', this.credentials.poolId);
-            form.append('addresses', addresses.join());
-            await this.postBulkAPI('deletePoolAddresses', form);
+            await this.postBulkAPI('deletePoolAddresses', { addresses });
             result = true;
         }
         return result;
@@ -307,7 +291,11 @@ class MonitorClient extends EventEmitter {
                     lockCheckCount++;
                     if (lockCheckCount >= this.options.cacheLockCheckLimit) {
                         // No data on timeout
-                        return {};
+                        return {
+                            name: 'Unknown',
+                            symbol: 'Unknown',
+                            decimals: 0
+                        };
                     }
                 }
             }
@@ -384,20 +372,29 @@ class MonitorClient extends EventEmitter {
      * Makes post request to Bulk API
      *
      * @param {string} method
-     * @param {object} form
+     * @param {object} data
      * @returns {Object|null}
      */
-    async postBulkAPI(method, form) {
+    async postBulkAPI(method, data) {
         if (['createPool', 'deletePool', 'addPoolAddresses', 'deletePoolAddresses'].indexOf(method) < 0) {
             throw new Error(`${errorMessages.unknown_method} ${method}`);
         }
         if ((method !== 'createPool') && !this.credentials.poolId) {
             throw new Error(errorMessages.no_pool_id);
         }
+        const form = new FormData();
+        form.append('apiKey', this.credentials.apiKey);
+        if (method !== 'createPool') {
+            form.append('poolId', this.credentials.poolId);
+        }
+        if (data.addresses && data.addresses.length) {
+            form.append('addresses', data.addresses.join());
+        }
         let result = null;
         try {
             const url = `${this.options.monitor}/${method}`;
-            result = this.processBulkAPIData(await got.post(url, { body: form }));
+            const d = await got.post(url, { body: form });
+            result = this.processBulkAPIData(d);
         } catch (e) {
             throw new Error(`${errorMessages.request_failed} ${e.message}`);
         }

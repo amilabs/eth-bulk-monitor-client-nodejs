@@ -268,9 +268,10 @@ class MonitorClient extends EventEmitter {
             } catch (e) {
                 this.errors++;
                 this.emit('exception', e);
-                if (this.errors && (this.errors >= this.options.maxErrorCount)) {
+                if ((this.maxErrorCount > 0) && (this.errors >= this.options.maxErrorCount)) {
                     this.unwatch();
                     this.errors = 0;
+                    return;
                 }
             }
             setTimeout(this.intervalHandler(), this.options.interval * 1000);

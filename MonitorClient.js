@@ -53,6 +53,8 @@ class MonitorClient extends EventEmitter {
             maxErrorCount: 0,
             // Number of cache lock checks
             cacheLockCheckLimit: 100,
+            // Request timeout (ms)
+            requestTimeout: 10000,
             ...options
         };
         // Try to get poolId from options
@@ -310,7 +312,7 @@ class MonitorClient extends EventEmitter {
             let result = false;
             const { apiKey } = this.credentials;
             const requestUrl = `${this.options.api}/getTokenInfo/${address}?apiKey=${apiKey}`;
-            const data = await got(requestUrl);
+            const data = await got(requestUrl, { timeout: this.options.requestTimeout });
             if (data && data.body) {
                 const tokenData = JSON.parse(data.body);
                 if (tokenData) {
@@ -366,7 +368,7 @@ class MonitorClient extends EventEmitter {
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
         try {
-            result = this.processBulkAPIData(await got(url));
+            result = this.processBulkAPIData(await got(url, { timeout: this.options.requestTimeout }));
         } catch (e) {
             throw new Error(`${errorMessages.request_failed} ${e.message}`);
         }
@@ -398,7 +400,7 @@ class MonitorClient extends EventEmitter {
         let result = null;
         try {
             const url = `${this.options.monitor}/${method}`;
-            const d = await got.post(url, { body: form });
+            const d = await got.post(url, { body: form, timeout: this.options.requestTimeout });
             result = this.processBulkAPIData(d);
         } catch (e) {
             throw new Error(`${errorMessages.request_failed} ${e.message}`);

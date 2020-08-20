@@ -30,6 +30,7 @@ const errorMessages = {
 // Last unwatch event timestamp
 let lastUnwatchTs = 0;
 
+// Ethereum pseudo-token addess
 const ETHAddress = '0x0000000000000000000000000000000000000000';
 
 class MonitorClient extends EventEmitter {
@@ -211,6 +212,7 @@ class MonitorClient extends EventEmitter {
         return async () => {
             try {
                 if (!this.watching) return;
+                const eventsEmitted = {};
                 const blocksToAdd = [];
                 const [transactionsData, operationsData] = await Promise.all([
                     this.getTransactions(lastUnwatchTs),
@@ -225,7 +227,11 @@ class MonitorClient extends EventEmitter {
                             data.usdValue = parseFloat((data.value * rate).toFixed(2));
                             if (data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
                                 if (this.watching) {
-                                    this.emit('data', { address, data, type: 'transaction' });
+                                    const eventName = `tx-${address}-${data.hash}`;
+                                    if (eventsEmitted[eventName] === undefined) {
+                                        eventsEmitted[eventName] = true;
+                                        this.emit('data', { address, data, type: 'transaction' });
+                                    }
                                 }
                                 if (blocksToAdd.indexOf(data.blockNumber) < 0) {
                                     blocksToAdd.push(data.blockNumber);
@@ -250,7 +256,11 @@ class MonitorClient extends EventEmitter {
                                         }
                                     }
                                     if (this.watching) {
-                                        this.emit('data', { address, data, type: 'operation' });
+                                        const eventName = `op-${address}-${data.hash}-${data.priority}`;
+                                        if (eventsEmitted[eventName] === undefined) {
+                                            eventsEmitted[eventName] = true;
+                                            this.emit('data', { address, data, type: 'operation' });
+                                        }
                                     }
                                     if (blocksToAdd.indexOf(blockNumber) < 0) {
                                         blocksToAdd.push(blockNumber);
@@ -270,7 +280,7 @@ class MonitorClient extends EventEmitter {
             } catch (e) {
                 this.errors++;
                 this.emit('exception', e);
-                if ((this.maxErrorCount > 0) && (this.errors >= this.options.maxErrorCount)) {
+                if ((this.options.maxErrorCount > 0) && (this.errors >= this.options.maxErrorCount)) {
                     this.unwatch();
                     this.errors = 0;
                     return;

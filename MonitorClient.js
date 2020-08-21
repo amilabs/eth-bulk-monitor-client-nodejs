@@ -55,7 +55,7 @@ class MonitorClient extends EventEmitter {
             // Number of cache lock checks
             cacheLockCheckLimit: 100,
             // Request timeout (ms)
-            requestTimeout: 10000,
+            requestTimeout: 30000,
             ...options
         };
         // Try to get poolId from options
@@ -184,7 +184,6 @@ class MonitorClient extends EventEmitter {
         }
         this.watching = true;
         return (this.intervalHandler())().then(() => {
-            setTimeout(this.intervalHandler(), this.options.interval * 1000);
             this.emit('watched', null);
             return 'ok';
         });
@@ -367,13 +366,19 @@ class MonitorClient extends EventEmitter {
      * @returns {Object|null}
      */
     async getUpdates(method, startTime = 0) {
+        if (['getPoolLastTransactions', 'getPoolLastOperations'].indexOf(method) < 0) {
+            throw new Error(`${errorMessages.unknown_method} ${method}`);
+        }
+        const promise = this._getUpdates(method, startTime);
+        this.emit(method, promise);
+        return promise;
+    }
+
+    async _getUpdates(method, startTime = 0) {
         if (!this.credentials.poolId) {
             throw new Error(errorMessages.no_pool_id);
         }
         let result = null;
-        if (['getPoolLastTransactions', 'getPoolLastOperations'].indexOf(method) < 0) {
-            throw new Error(`${errorMessages.unknown_method} ${method}`);
-        }
         const period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
@@ -399,6 +404,19 @@ class MonitorClient extends EventEmitter {
         if ((method !== 'createPool') && !this.credentials.poolId) {
             throw new Error(errorMessages.no_pool_id);
         }
+        const promise = this._postBulkAPI(method, data);
+        this.emit(method, promise);
+        return promise;
+    }
+
+    /**
+     * Makes post request to Bulk API
+     *
+     * @param {string} method
+     * @param {object} data
+     * @returns {Object|null}
+     */
+    async _postBulkAPI(method, data) {
         const form = new FormData();
         form.append('apiKey', this.credentials.apiKey);
         if (method !== 'createPool') {

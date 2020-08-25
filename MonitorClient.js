@@ -30,6 +30,9 @@ const errorMessages = {
 // Last unwatch event timestamp
 let lastUnwatchTs = 0;
 
+// Last processed tx timestamp
+let lastTxTs = 0;
+
 // Ethereum pseudo-token addess
 const ETHAddress = '0x0000000000000000000000000000000000000000';
 
@@ -84,6 +87,7 @@ class MonitorClient extends EventEmitter {
         // Watching state
         this.state = {
             lastBlock: 0,
+            lastTs: 0,
             blocks: {}
         };
     }
@@ -106,6 +110,7 @@ class MonitorClient extends EventEmitter {
         if (!state || (state.lastBlock === undefined)) {
             throw new Error(errorMessages.invalid_state);
         }
+        lastUnwatchTs = state.lastTs ? state.lastTs : 0;
         this.state = state;
     }
 
@@ -228,6 +233,7 @@ class MonitorClient extends EventEmitter {
                                 if (this.watching) {
                                     const eventName = `tx-${address}-${data.hash}`;
                                     if (eventsEmitted[eventName] === undefined) {
+                                        lastTxTs = data.timestamp * 1000;
                                         eventsEmitted[eventName] = true;
                                         this.emit('data', { address, data, type: 'transaction' });
                                     }
@@ -272,6 +278,7 @@ class MonitorClient extends EventEmitter {
                         if (this.state.lastBlock < block) {
                             this.state.lastBlock = block;
                         }
+                        this.state.lastTs = lastTxTs;
                         this.state.blocks[block] = true;
                     });
                     this.emit('stateChanged', this.state);
@@ -379,7 +386,10 @@ class MonitorClient extends EventEmitter {
             throw new Error(errorMessages.no_pool_id);
         }
         let result = null;
-        const period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
+        let period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
+        if (this.state.lastTs && (Date.now() - this.state.lastTs) > period) {
+            period = Date.now() - this.state.lastTs;
+        }
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
         try {

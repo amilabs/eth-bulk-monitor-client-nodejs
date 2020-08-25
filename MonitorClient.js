@@ -387,8 +387,8 @@ class MonitorClient extends EventEmitter {
         }
         let result = null;
         let period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
-        if (this.state.lastTs && (Date.now() - this.state.lastTs) > period) {
-            period = Date.now() - this.state.lastTs;
+        if (this.state.lastTs && Math.floor((Date.now() - this.state.lastTs) / 1000) > period) {
+            period = Math.floor((Date.now() - this.state.lastTs) / 1000);
         }
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;

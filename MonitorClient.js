@@ -386,10 +386,9 @@ class MonitorClient extends EventEmitter {
             throw new Error(errorMessages.no_pool_id);
         }
         let result = null;
-        let period = startTime ? Math.floor((Date.now() - startTime) / 1000) : this.options.period;
-        if (this.state.lastTs && Math.floor((Date.now() - this.state.lastTs) / 1000) > period) {
-            period = Math.floor((Date.now() - this.state.lastTs) / 1000);
-        }
+        const startTs = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+        const lastTs = this.state.lastTs ? Math.floor((Date.now() - this.state.lastTs) / 1000) : 0;
+        const period = Math.max(this.options.period, startTs, lastTs);
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
         try {

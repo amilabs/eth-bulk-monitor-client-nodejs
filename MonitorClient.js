@@ -278,11 +278,12 @@ class MonitorClient extends EventEmitter {
                         if (this.state.lastBlock < block) {
                             this.state.lastBlock = block;
                         }
-                        if (!this.state.lastTs || lastTxTs > this.state.lastTs) {
-                            this.state.lastTs = lastTxTs;
-                        }
                         this.state.blocks[block] = true;
                     });
+                    if (!this.state.lastTs || lastTxTs > this.state.lastTs) {
+                        this.state.lastTs = lastTxTs;
+                    }
+                    lastUnwatchTs = 0;
                     this.emit('stateChanged', this.state);
                 }
             } catch (e) {

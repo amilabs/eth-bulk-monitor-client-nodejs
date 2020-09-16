@@ -59,6 +59,8 @@ class MonitorClient extends EventEmitter {
             cacheLockCheckLimit: 100,
             // Request timeout (ms)
             requestTimeout: 30000,
+            // Watch for failed transactions/operations
+            watchFailed: false,
             ...options
         };
         // Try to get poolId from options
@@ -228,8 +230,9 @@ class MonitorClient extends EventEmitter {
                         const txData = transactionsData[address];
                         for (let i = 0; i < txData.length; i++) {
                             const data = { ...txData[i], rate };
+                            const skipFailed = (!this.options.watchFailed && !data.success);
                             data.usdValue = parseFloat((data.value * rate).toFixed(2));
-                            if (data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
+                            if (!skipFailed && data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
                                 if (this.watching) {
                                     const eventName = `tx-${address}-${data.hash}`;
                                     if (eventsEmitted[eventName] === undefined) {

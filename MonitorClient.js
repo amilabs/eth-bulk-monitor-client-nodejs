@@ -57,6 +57,8 @@ class MonitorClient extends EventEmitter {
             maxErrorCount: 0,
             // Number of cache lock checks
             cacheLockCheckLimit: 100,
+            // Tokens cache lifetime (ms)
+            tokensCacheLifeTime: 600000,
             // Request timeout (ms)
             requestTimeout: 30000,
             // Watch for failed transactions/operations
@@ -329,7 +331,8 @@ class MonitorClient extends EventEmitter {
                 }
             }
         }
-        if (this.tokensCache[address] === undefined) {
+        const cache = this.tokensCache[address];
+        if (cache === undefined || (Date.now() - cache.saveTs) > this.options.tokensCacheLifeTime) {
             this.tokensCacheLocks[address] = true;
             let result = false;
             const { apiKey } = this.credentials;
@@ -348,10 +351,10 @@ class MonitorClient extends EventEmitter {
                     };
                 }
             }
-            this.tokensCache[address] = result;
+            this.tokensCache[address] = { result, saveTs: Date.now() };
             delete this.tokensCacheLocks[address];
         }
-        return this.tokensCache[address];
+        return this.tokensCache[address].result;
     }
 
     /**

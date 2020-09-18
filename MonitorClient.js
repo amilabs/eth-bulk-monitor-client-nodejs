@@ -322,11 +322,12 @@ class MonitorClient extends EventEmitter {
                     lockCheckCount++;
                     if (lockCheckCount >= this.options.cacheLockCheckLimit) {
                         // No data on timeout
-                        return {
+                        const unknownToken = {
                             name: 'Unknown',
                             symbol: 'Unknown',
                             decimals: 0
                         };
+                        return this.tokensCache[address] ? this.tokensCache[address] : unknownToken;
                     }
                 }
             }
@@ -351,7 +352,12 @@ class MonitorClient extends EventEmitter {
                     };
                 }
             }
-            this.tokensCache[address] = { result, saveTs: Date.now() };
+            // Use previously cached value on error
+            if (!result && this.tokensCache[address] && this.tokensCache[address].result) {
+                this.tokensCache[address].saveTs = Date.now();
+            } else {
+                this.tokensCache[address] = { result, saveTs: Date.now() };
+            }
             delete this.tokensCacheLocks[address];
         }
         return this.tokensCache[address].result;

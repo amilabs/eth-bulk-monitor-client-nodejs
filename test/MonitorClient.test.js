@@ -50,6 +50,16 @@ describe('MonitorClient test', () => {
                 });
             });
 
+        ws.route("/createPool")
+            .get((req, res) => {
+                res.json(operations);
+            });
+
+        ws.route("/deletePool")
+            .get((req, res) => {
+                res.json(operations);
+            });
+
         ws.route("/getPoolLastOperations/poolId")
             .get((req, res) => {
                 res.json(operations);
@@ -128,6 +138,7 @@ describe('MonitorClient test', () => {
             assert.equal(state.blocks['1000'], true);
             assert.equal(state.blocks['1001'], true);
             mon.unwatch();
+            delete mon;
             done();
         });
         mon.watch();
@@ -143,32 +154,75 @@ describe('MonitorClient test', () => {
         });
         mon.watch();
     });
+
+    it('should watch failed if watchFailed flag is on', (done) => {
+        const mon = new lib('apiKey', {...options, watchFailed: true });
+        addNextBlockTx(A1, A2, C0, 500, 1, false);
+        mon.restoreState({
+            lastBlock: 1002,
+            blocks: { 1000: true, 1001: true, 1002: true }
+        });
+        mon.on("data", (eventData) => {
+            assert.equal(eventData.success, false);
+            mon.unwatch();
+        });
+        mon.on("unwatched", () => {
+            delete mon;
+            done();
+        });
+        mon.watch();
+    });
+
+    it('should not watch failed if watchFailed flag is off', (done) => {
+        const mon = new lib('apiKey', {...options });
+        mon.restoreState({
+            lastBlock: 1002,
+            blocks: { 1000: true, 1001: true, 1002: true }
+        });
+        mon.on("data", (eventData) => {
+            console.log(eventData);
+            assert.equal(eventData.success, true);
+            mon.unwatch();
+        });
+        mon.on("unwatched", () => {
+            delete mon;
+            done();
+        });
+        setTimeout(() => {
+            addNextBlockTx(A1, A2, C0, 500, 1);
+        }, 50);
+        mon.watch();
+    });
+
 });
 
-function addNextBlockTx(from, to, contract, value, valueETH) {
+function addNextBlockTx(from, to, contract, value, valueETH, success = true) {
     if (operations[from] === undefined) {
         operations[from] = [];
     }
     if (transactions[from] === undefined) {
         transactions[from] = [];
     }
-    const op = {
-        timestamp: Date.now(),
-        blockNumber,
-        contract,
-        value,
-        type: "transfer",
-        priority: 0,
-        from,
-        to,
-        hash: blockNumber.toString(),
-        balances: {}
-    };
 
-    op.balances[from] = 10000;
-    op.balances[to] = 10000;
+    if (success) {
+        const op = {
+            timestamp: Date.now(),
+            blockNumber,
+            contract,
+            value,
+            type: "transfer",
+            priority: 0,
+            from,
+            to,
+            hash: blockNumber.toString(),
+            balances: {}
+        };
 
-    operations[from].push(op);
+        op.balances[from] = 10000;
+        op.balances[to] = 10000;
+
+        operations[from].push(op);
+    }
 
     const tx = {
         timestamp: Date.now(),
@@ -179,7 +233,7 @@ function addNextBlockTx(from, to, contract, value, valueETH) {
         value: valueETH,
         input: "0xa9059cbb",
         balances: {},
-        success: true
+        success
     };
 
     tx.balances[from] = 10000;

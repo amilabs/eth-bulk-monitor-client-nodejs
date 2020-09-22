@@ -156,17 +156,15 @@ describe('MonitorClient test', () => {
     });
 
     it('should watch failed if watchFailed flag is on', (done) => {
-        const mon = new lib('apiKey', {...options, watchFailed: true });
         addNextBlockTx(A1, A2, C0, 500, 1, false);
+        const mon = new lib('apiKey', {...options, watchFailed: true });
         mon.restoreState({
             lastBlock: 1002,
             blocks: { 1000: true, 1001: true, 1002: true }
         });
         mon.on("data", (eventData) => {
-            assert.equal(eventData.success, false);
+            assert.equal(eventData.data.success, false);
             mon.unwatch();
-        });
-        mon.on("unwatched", () => {
             delete mon;
             done();
         });
@@ -180,20 +178,18 @@ describe('MonitorClient test', () => {
             blocks: { 1000: true, 1001: true, 1002: true }
         });
         mon.on("data", (eventData) => {
-            console.log(eventData);
-            assert.equal(eventData.success, true);
-            mon.unwatch();
-        });
-        mon.on("unwatched", () => {
-            delete mon;
-            done();
+            if(eventData.type === 'transaction') {
+                assert.equal(eventData.data.success, true);
+                mon.unwatch();
+                delete mon;
+                done();
+            }
         });
         setTimeout(() => {
             addNextBlockTx(A1, A2, C0, 500, 1);
         }, 50);
         mon.watch();
     });
-
 });
 
 function addNextBlockTx(from, to, contract, value, valueETH, success = true) {

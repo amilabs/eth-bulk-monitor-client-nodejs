@@ -240,7 +240,7 @@ class MonitorClient extends EventEmitter {
                                     if (eventsEmitted[eventName] === undefined) {
                                         lastTxTs = data.timestamp * 1000;
                                         eventsEmitted[eventName] = true;
-                                        this.emit('data', { address, data, type: 'transaction' });
+                                        setImmediate(() => this.emit('data', { address, data, type: 'transaction' }));
                                     }
                                 }
                                 if (blocksToAdd.indexOf(data.blockNumber) < 0) {
@@ -269,7 +269,7 @@ class MonitorClient extends EventEmitter {
                                         const eventName = `op-${address}-${data.hash}-${data.priority}`;
                                         if (eventsEmitted[eventName] === undefined) {
                                             eventsEmitted[eventName] = true;
-                                            this.emit('data', { address, data, type: 'operation' });
+                                            setImmediate(() => this.emit('data', { address, data, type: 'operation' }));
                                         }
                                     }
                                     if (blocksToAdd.indexOf(blockNumber) < 0) {
@@ -289,11 +289,11 @@ class MonitorClient extends EventEmitter {
                         this.state.lastTs = lastTxTs;
                     }
                     lastUnwatchTs = 0;
-                    this.emit('stateChanged', this.state);
+                    setImmediate(() => this.emit('stateChanged', this.state));
                 }
             } catch (e) {
                 this.errors++;
-                this.emit('exception', e);
+                setImmediate(() => this.emit('exception', e));
                 if ((this.options.maxErrorCount > 0) && (this.errors >= this.options.maxErrorCount)) {
                     this.unwatch();
                     this.errors = 0;

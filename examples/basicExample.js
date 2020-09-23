@@ -1,33 +1,24 @@
 /**
  * Bulk API Monitor client library basic usage example.
  */
-
-const monitorClient = require('eth-bulk-monitor-client-nodejs');
+const { monitorApp } = require('../index');
 
 /**
- * Initialize client
+ * Initialize client application.
  *
- * @type monitorClient
+ * @type monitorApp
  */
-const monitor = new monitorClient('put your API key here’');
+const app = new monitorApp('put your API key here');
 
 /**
- * Add some addresses to the pool
+ * Watch for the address new transactions/operations and print out any update
  */
-monitor.addAddresses([
-    '0x0000000000000000000000000000000000000000',
-    '0x0000000000000000000000000000000000000001',
-    '0x0000000000000000000000000000000000000002'
-]);
-
-/**
- * Add data event callback
- */
-monitor.on("data", function(data){
-    console.log(data);
-});
-
-/**
- * Start watching
- */
-monitor.watch();
+app.watch([
+        '0x0000000000000000000000000000000000000001',
+        '0x0000000000000000000000000000000000000002',
+        '0x0000000000000000000000000000000000000003'
+    ],
+    // Callback for every new transaction or operation
+    (data) => {
+        console.log(data);
+    });

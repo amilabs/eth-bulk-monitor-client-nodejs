@@ -8,14 +8,14 @@ const A1 = "0x0000000000000000000000000000000000000001";
 const A2 = "0x0000000000000000000000000000000000000002";
 const C0 = "0x0000000000000000000000000000000000000003";
 
-const transactions = {};
-const operations = {};
+let transactions = {};
+let operations = {};
 
 let blockNumber = 1000;
 
 const options = {
     poolId: 'poolId',
-    interval: 1,
+    interval: 0.1,
     network: 'custom',
     api: 'http://127.0.0.1:63101',
     monitor: 'http://127.0.0.1:63101',
@@ -107,7 +107,8 @@ describe('MonitorClient test', () => {
         });
         mon.on("stateChanged", async (state) => {
             assert.equal(state.lastBlock, 1000);
-            assert.equal(state.blocks['1000'], true);           
+            assert.equal(state.blocksTx[1000], true);
+            assert.equal(state.blocksOp[1000], true);
             mon.unwatch();
         });
         mon.on("unwatched", () => {
@@ -123,9 +124,8 @@ describe('MonitorClient test', () => {
         const mon = new lib('apiKey', options);
         const savedState = {
             lastBlock: 1000,
-            blocks: {
-                1000: true
-            }
+            blocksTx: { 1000: true },
+            blocksOp: { 1000: true },
         };
         mon.restoreState(savedState);
         mon.on("data", (eventData) => {
@@ -135,8 +135,10 @@ describe('MonitorClient test', () => {
         });
         mon.on("stateChanged", (state) => {
             assert.equal(state.lastBlock, 1001);
-            assert.equal(state.blocks['1000'], true);
-            assert.equal(state.blocks['1001'], true);
+            assert.equal(state.blocksTx[1000], true);
+            assert.equal(state.blocksTx[1001], true);
+            assert.equal(state.blocksOp[1000], true);
+            assert.equal(state.blocksOp[1001], true);
             mon.unwatch();
             delete mon;
             done();
@@ -156,12 +158,9 @@ describe('MonitorClient test', () => {
     });
 
     it('should watch failed if watchFailed flag is on', (done) => {
+        clearTransactionsAndOperations();
         addNextBlockTx(A1, A2, C0, 500, 1, false);
         const mon = new lib('apiKey', {...options, watchFailed: true });
-        mon.restoreState({
-            lastBlock: 1002,
-            blocks: { 1000: true, 1001: true, 1002: true }
-        });
         mon.on("data", (eventData) => {
             assert.equal(eventData.data.success, false);
             mon.unwatch();
@@ -172,11 +171,8 @@ describe('MonitorClient test', () => {
     });
 
     it('should not watch failed if watchFailed flag is off', (done) => {
+        clearTransactionsAndOperations();
         const mon = new lib('apiKey', {...options });
-        mon.restoreState({
-            lastBlock: 1002,
-            blocks: { 1000: true, 1001: true, 1002: true }
-        });
         mon.on("data", (eventData) => {
             if(eventData.type === 'transaction') {
                 assert.equal(eventData.data.success, true);
@@ -187,47 +183,48 @@ describe('MonitorClient test', () => {
         });
         setTimeout(() => {
             addNextBlockTx(A1, A2, C0, 500, 1);
-        }, 50);
+        }, 0);
         mon.watch();
     });
+
+    it('should watch operation if it was added after same block transaction', (done) => {
+        clearTransactionsAndOperations();
+        addNextBlockTx(A1, A2, C0, 500, 1, true, true);
+        const mon = new lib('apiKey', {...options });
+        mon.on("data", (eventData) => {
+            if(eventData.type === 'transaction') {
+                assert.equal(eventData.data.blockNumber, 1005);
+                addBlockOp(eventData.data.blockNumber, A1, A2, C0, 500);
+            }
+            if(eventData.type === 'operation') {
+                assert.equal(eventData.data.blockNumber, 1005);
+                mon.unwatch();
+                delete mon;
+                done();
+            }
+        });
+        mon.watch();
+    });
+
 });
 
-function addNextBlockTx(from, to, contract, value, valueETH, success = true) {
-    if (operations[from] === undefined) {
-        operations[from] = [];
-    }
+function addNextBlockTx(from, to, contract, value, valueETH, success = true, noOperation = false) {
     if (transactions[from] === undefined) {
         transactions[from] = [];
     }
 
-    if (success) {
-        const op = {
-            timestamp: Date.now(),
-            blockNumber,
-            contract,
-            value,
-            type: "transfer",
-            priority: 0,
-            from,
-            to,
-            hash: blockNumber.toString(),
-            balances: {}
-        };
-
-        op.balances[from] = 10000;
-        op.balances[to] = 10000;
-
-        operations[from].push(op);
+    if (success && !noOperation) {
+        addBlockOp(blockNumber, from, to, contract, value);
     }
 
     const tx = {
         timestamp: Date.now(),
-        blockNumber: blockNumber,
-        from: from,
+        blockNumber,
+        from,
         to: contract,
         hash: blockNumber.toString(),
         value: valueETH,
-        input: "0xa9059cbb",
+        input: '0xa9059cbb',
         balances: {},
         success
     };
@@ -238,4 +235,32 @@ function addNextBlockTx(from, to, contract, value, valueETH, success = true) {
     transactions[from].push(tx);
 
     blockNumber++;
+}
+
+function addBlockOp(blockNumber, from, to, contract, value) {
+    if (operations[from] === undefined) {
+        operations[from] = [];
+    }
+    const op = {
+        timestamp: Date.now(),
+        blockNumber,
+        contract,
+        value,
+        type: 'transfer',
+        priority: 0,
+        from,
+        to,
+        hash: blockNumber.toString(),
+        balances: {}
+    };
+
+    op.balances[from] = 10000;
+    op.balances[to] = 10000;
+
+    operations[from].push(op);
+}
+
+function clearTransactionsAndOperations() {
+    transactions = {};
+    operations = {};
 }

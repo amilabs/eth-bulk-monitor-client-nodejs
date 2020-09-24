@@ -92,7 +92,8 @@ class MonitorClient extends EventEmitter {
         this.state = {
             lastBlock: 0,
             lastTs: 0,
-            blocks: {}
+            blocksTx: {},
+            blocksOp: {}
         };
     }
 
@@ -114,18 +115,34 @@ class MonitorClient extends EventEmitter {
         if (!state || (state.lastBlock === undefined)) {
             throw new Error(errorMessages.invalid_state);
         }
+        if (!state.blocksTx) {
+            state.blocksTx = {};
+        }
+        if (!state.blocksOp) {
+            state.blocksOp = {};
+        }
         lastUnwatchTs = state.lastTs ? state.lastTs : 0;
         this.state = state;
     }
 
     /**
-     * Checks if the block was already processed.
+     * Checks if the transactions block was already processed.
      *
      * @param {int} blockNumber
      * @returns {Boolean}
      */
-    isBlockProcessed(blockNumber) {
-        return (this.state.blocks[blockNumber] !== undefined);
+    isTxBlockProcessed(blockNumber) {
+        return (this.state.blocksTx[blockNumber] !== undefined);
+    }
+
+    /**
+     * Checks if the operations block was already processed.
+     *
+     * @param {int} blockNumber
+     * @returns {Boolean}
+     */
+    isOpBlockProcessed(blockNumber) {
+        return (this.state.blocksOp[blockNumber] !== undefined);
     }
 
     /**
@@ -221,7 +238,8 @@ class MonitorClient extends EventEmitter {
             try {
                 if (!this.watching) return;
                 const eventsEmitted = {};
-                const blocksToAdd = [];
+                const blocksToAddTransactions = [];
+                const blocksToAddOperations = [];
 
                 const transactionsData = await this.getTransactions(lastUnwatchTs);
                 if (transactionsData) {
@@ -232,7 +250,7 @@ class MonitorClient extends EventEmitter {
                             const data = { ...txData[i], rate };
                             const skipFailed = (!this.options.watchFailed && !data.success);
                             data.usdValue = parseFloat((data.value * rate).toFixed(2));
-                            if (!skipFailed && data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
+                            if (!skipFailed && data.blockNumber && !this.isTxBlockProcessed(data.blockNumber)) {
                                 if (this.watching) {
                                     const eventName = `tx-${address}-${data.hash}`;
                                     if (eventsEmitted[eventName] === undefined) {
@@ -241,8 +259,8 @@ class MonitorClient extends EventEmitter {
                                         setImmediate(() => this.emit('data', { address, data, type: 'transaction' }));
                                     }
                                 }
-                                if (blocksToAdd.indexOf(data.blockNumber) < 0) {
-                                    blocksToAdd.push(data.blockNumber);
+                                if (blocksToAddTransactions.indexOf(data.blockNumber) < 0) {
+                                    blocksToAddTransactions.push(data.blockNumber);
                                 }
                             }
                         }
@@ -255,7 +273,7 @@ class MonitorClient extends EventEmitter {
                             .then((token) => {
                                 const { blockNumber } = operation;
                                 const validOpType = (['approve'].indexOf(operation.type) < 0);
-                                if (blockNumber && !this.isBlockProcessed(blockNumber) && validOpType) {
+                                if (blockNumber && !this.isOpBlockProcessed(blockNumber) && validOpType) {
                                     const data = { ...operation, token };
                                     if (data.token && (data.token.decimals !== undefined)) {
                                         data.rawValue = data.value;
@@ -271,18 +289,24 @@ class MonitorClient extends EventEmitter {
                                             setImmediate(() => this.emit('data', { address, data, type: 'operation' }));
                                         }
                                     }
-                                    if (blocksToAdd.indexOf(blockNumber) < 0) {
-                                        blocksToAdd.push(blockNumber);
+                                    if (blocksToAddOperations.indexOf(blockNumber) < 0) {
+                                        blocksToAddOperations.push(blockNumber);
                                     }
                                 }
                             })))));
                 }
-                if (blocksToAdd.length) {
-                    blocksToAdd.forEach((block) => {
+                if (blocksToAddTransactions.length || blocksToAddOperations.length) {
+                    blocksToAddTransactions.forEach((block) => {
                         if (this.state.lastBlock < block) {
                             this.state.lastBlock = block;
                         }
-                        this.state.blocks[block] = true;
+                        this.state.blocksTx[block] = true;
+                    });
+                    blocksToAddOperations.forEach((block) => {
+                        if (this.state.lastBlock < block) {
+                            this.state.lastBlock = block;
+                        }
+                        this.state.blocksOp[block] = true;
                     });
                     if (!this.state.lastTs || lastTxTs > this.state.lastTs) {
                         this.state.lastTs = lastTxTs;

@@ -222,10 +222,8 @@ class MonitorClient extends EventEmitter {
                 if (!this.watching) return;
                 const eventsEmitted = {};
                 const blocksToAdd = [];
-                const [transactionsData, operationsData] = await Promise.all([
-                    this.getTransactions(lastUnwatchTs),
-                    this.getOperations(lastUnwatchTs)
-                ]);
+
+                const transactionsData = await this.getTransactions(lastUnwatchTs);
                 if (transactionsData) {
                     const { rate } = await this.getToken(ETHAddress);
                     Object.keys(transactionsData).forEach((address) => {
@@ -250,6 +248,7 @@ class MonitorClient extends EventEmitter {
                         }
                     });
                 }
+                const operationsData = await this.getOperations(lastUnwatchTs);
                 if (operationsData) {
                     await Promise.all(Object.keys(operationsData).map(address =>
                         Promise.all(operationsData[address].map(operation => this.getToken(operation.contract)

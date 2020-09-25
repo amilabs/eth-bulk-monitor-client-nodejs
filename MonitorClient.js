@@ -121,6 +121,9 @@ class MonitorClient extends EventEmitter {
         if (!state.blocksOp) {
             state.blocksOp = {};
         }
+        if (state.blocks) {
+            delete state.blocks;
+        }
         lastUnwatchTs = state.lastTs ? state.lastTs : 0;
         this.state = state;
     }

@@ -1,19 +1,19 @@
 /**
  * Bulk API Monitor client library basic usage example.
  */
-const { monitorApp } = require('../index');
+const { MonitorApp } = require('../index');
 
 /**
  * Initialize client application.
  *
  * @type monitorApp
  */
-const app = new monitorApp('put your API key here');
+const monitorApp = new MonitorApp('put your API key here');
 
 /**
  * Watch for the addresses new transactions/operations and print out any update
  */
-app.watch([
+monitorApp.watch([
     '0x0000000000000000000000000000000000000001',
     '0x0000000000000000000000000000000000000002',
     '0x0000000000000000000000000000000000000003'

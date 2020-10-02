@@ -200,6 +200,16 @@ class MonitorClient extends EventEmitter {
     }
 
     /**
+     * Removes all addresses from the pool.
+     *
+     * @returns {bool}
+     */
+    async removeAllAddresses() {
+        await this.postBulkAPI('clearPoolAddresses');
+        return true;
+    }
+
+    /**
      * Starts watching for address acitivity.
      *
      * @returns {Promise}
@@ -448,7 +458,13 @@ class MonitorClient extends EventEmitter {
      * @returns {Object|null}
      */
     async postBulkAPI(method, data) {
-        if (['createPool', 'deletePool', 'addPoolAddresses', 'deletePoolAddresses'].indexOf(method) < 0) {
+        if ([
+            'createPool',
+            'deletePool',
+            'addPoolAddresses',
+            'deletePoolAddresses',
+            'clearPoolAddresses'
+        ].indexOf(method) < 0) {
             throw new Error(`${errorMessages.unknown_method} ${method}`);
         }
         if ((method !== 'createPool') && !this.credentials.poolId) {
@@ -472,7 +488,7 @@ class MonitorClient extends EventEmitter {
         if (method !== 'createPool') {
             form.append('poolId', this.credentials.poolId);
         }
-        if (data.addresses && data.addresses.length) {
+        if (data && data.addresses && data.addresses.length) {
             form.append('addresses', data.addresses.join());
         }
         let result = null;

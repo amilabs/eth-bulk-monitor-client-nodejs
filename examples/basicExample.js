@@ -21,4 +21,6 @@ monitorApp.watch([
 // Callback for every new transaction or operation
 (data) => {
     console.log(data);
+}).catch((err) => {
+    console.log(err);
 });

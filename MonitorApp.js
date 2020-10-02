@@ -61,13 +61,20 @@ class MonitorApp {
      * @param {function} callback
      */
     async watch(addresses = [], callback) {
+        let isNew = false;
         if (this.state.poolId === false) {
             // Create a new pool
             this.state.poolId = await this.monitor.createPool(addresses);
             this.saveState();
+            isNew = true;
         }
 
         this.monitor.credentials.poolId = this.state.poolId;
+
+        if (!isNew) {
+            await this.monitor.removeAllAddresses();
+            await this.monitor.addAddresses(addresses);
+        }
 
         if (typeof (callback) === 'function') {
             this.monitor.on('data', callback);

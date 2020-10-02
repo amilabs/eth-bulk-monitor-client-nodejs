@@ -2,7 +2,7 @@
   "name": "eth-bulk-monitor-client-nodejs",
   "version": "0.0.3",
   "description": "Ethplorer bulk Monitor API nodejs client",
-  "main": "MonitorClient.js",
+  "main": "index.js",
   "devDependencies": {
     "babel-eslint": "10.0.1",
     "eslint": "4.19.1",

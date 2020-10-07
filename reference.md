@@ -63,8 +63,6 @@ Will create a new pool if no poolId was stored in the watching state
     * [new MonitorClient(apiKey, options)](#new_MonitorClient_new)
     * [.saveState()](#MonitorClient+saveState) ⇒ <code>Promise</code>
     * [.restoreState(state)](#MonitorClient+restoreState)
-    * [.isTxBlockProcessed(blockNumber)](#MonitorClient+isTxBlockProcessed) ⇒ <code>Boolean</code>
-    * [.isOpBlockProcessed(blockNumber)](#MonitorClient+isOpBlockProcessed) ⇒ <code>Boolean</code>
     * [.createPool(addresses)](#MonitorClient+createPool) ⇒ <code>Boolean</code> \| <code>string</code>
     * [.deletePool()](#MonitorClient+deletePool) ⇒ <code>Boolean</code>
     * [.addAddresses(addresses)](#MonitorClient+addAddresses) ⇒ <code>Boolean</code>
@@ -72,12 +70,8 @@ Will create a new pool if no poolId was stored in the watching state
     * [.removeAllAddresses()](#MonitorClient+removeAllAddresses) ⇒ <code>bool</code>
     * [.watch()](#MonitorClient+watch) ⇒ <code>Promise</code>
     * [.unwatch()](#MonitorClient+unwatch) ⇒ <code>undefined</code>
-    * [.intervalHandler()](#MonitorClient+intervalHandler) ⇒ <code>undefined</code>
     * [.getToken(address)](#MonitorClient+getToken) ⇒ <code>Object</code> \| <code>bool</code>
-    * [.processBulkAPIData(data)](#MonitorClient+processBulkAPIData) ⇒ <code>Object</code> \| <code>null</code>
     * [.getUpdates(method, startTime)](#MonitorClient+getUpdates) ⇒ <code>Object</code> \| <code>null</code>
-    * [.postBulkAPI(method, data)](#MonitorClient+postBulkAPI) ⇒ <code>Object</code> \| <code>null</code>
-    * [._postBulkAPI(method, data)](#MonitorClient+_postBulkAPI) ⇒ <code>Object</code> \| <code>null</code>
     * [.getTransactions(startTime)](#MonitorClient+getTransactions) ⇒ <code>Object</code> \| <code>null</code>
     * [.getOperations(startTime)](#MonitorClient+getOperations) ⇒ <code>Object</code> \| <code>null</code>
 
@@ -108,28 +102,6 @@ Restores state from saved data.
 | Param | Type |
 | --- | --- |
 | state | <code>Object</code> | 
-
-<a name="MonitorClient+isTxBlockProcessed"></a>
-
-### monitorClient.isTxBlockProcessed(blockNumber) ⇒ <code>Boolean</code>
-Checks if the transactions block was already processed.
-
-**Kind**: instance method of [<code>MonitorClient</code>](#MonitorClient)  
-
-| Param | Type |
-| --- | --- |
-| blockNumber | <code>int</code> | 
-
-<a name="MonitorClient+isOpBlockProcessed"></a>
-
-### monitorClient.isOpBlockProcessed(blockNumber) ⇒ <code>Boolean</code>
-Checks if the operations block was already processed.
-
-**Kind**: instance method of [<code>MonitorClient</code>](#MonitorClient)  
-
-| Param | Type |
-| --- | --- |
-| blockNumber | <code>int</code> | 
 
 <a name="MonitorClient+createPool"></a>
 
@@ -190,12 +162,6 @@ Stops watching for address activity.
 **Kind**: instance method of [<code>MonitorClient</code>](#MonitorClient)  
 <a name="MonitorClient+intervalHandler"></a>
 
-### monitorClient.intervalHandler() ⇒ <code>undefined</code>
-Handles the watching interval.
-
-**Kind**: instance method of [<code>MonitorClient</code>](#MonitorClient)  
-<a name="MonitorClient+getToken"></a>
-
 ### monitorClient.getToken(address) ⇒ <code>Object</code> \| <code>bool</code>
 Returns token data by token address.
 
@@ -204,17 +170,6 @@ Returns token data by token address.
 | Param | Type |
 | --- | --- |
 | address | <code>string</code> | 
-
-<a name="MonitorClient+processBulkAPIData"></a>
-
-### monitorClient.processBulkAPIData(data) ⇒ <code>Object</code> \| <code>null</code>
-Parses data from Bulk API, checks for errors
-
-**Kind**: instance method of [<code>MonitorClient</code>](#MonitorClient)  
-
-| Param | Type |
-| --- | --- |
-| data | <code>object</code> | 
 
 <a name="MonitorClient+getUpdates"></a>
 
@@ -227,30 +182,6 @@ Asks Bulk API for updates
 | --- | --- | --- |
 | method | <code>string</code> |  | 
 | startTime | <code>int</code> | <code>0</code> | 
-
-<a name="MonitorClient+postBulkAPI"></a>
-
-### monitorClient.postBulkAPI(method, data) ⇒ <code>Object</code> \| <code>null</code>
-Makes post request to Bulk API
-
-**Kind**: instance method of [<code>MonitorClient</code>](#MonitorClient)  
-
-| Param | Type |
-| --- | --- |
-| method | <code>string</code> | 
-| data | <code>object</code> | 
-
-<a name="MonitorClient+_postBulkAPI"></a>
-
-### monitorClient.\_postBulkAPI(method, data) ⇒ <code>Object</code> \| <code>null</code>
-Makes post request to Bulk API
-
-**Kind**: instance method of [<code>MonitorClient</code>](#MonitorClient)  
-
-| Param | Type |
-| --- | --- |
-| method | <code>string</code> | 
-| data | <code>object</code> | 
 
 <a name="MonitorClient+getTransactions"></a>
 

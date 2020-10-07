@@ -30,3 +30,7 @@ monitorApp.watch([
 ```
 
 Voila, now we can get and process all the new transactions and ERC-20 operations for the specified addresses using just a single npm library and Node.js.
+
+## Class reference
+
+You can find the complete class reference [here](reference.md).

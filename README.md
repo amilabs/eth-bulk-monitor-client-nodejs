@@ -12,7 +12,7 @@ First of all, let's include MonitorApp class:
 const { MonitorApp } = require('eth-bulk-monitor-client-nodejs');
 ```
 
-Then instantiate the class with your [API key](https://ethplorer.io/wallet/#register).
+Then instantiate the class with your [API key](https://ethplorer.zendesk.com/hc/en-us/articles/900000976026-How-to-get-access-to-the-Bulk-API-Monitor-).
 ```
 const monitorApp = new MonitorApp('put your API key here');
 ```

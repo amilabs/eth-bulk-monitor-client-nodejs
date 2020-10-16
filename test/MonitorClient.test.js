@@ -205,7 +205,34 @@ describe('MonitorClient test', () => {
         });
         mon.watch();
     });
-
+    
+    it('should not raise data event for duplicate data', (done) => {
+        clearTransactionsAndOperations();
+        const mon = new lib('apiKey', {...options, watchFailed: true });
+        let dups = 0;
+        mon.on("data", (eventData) => {
+            if(eventData.data.blockNumber === 1) {
+                dups++;
+            }
+            if(eventData.data.blockNumber === 2) {
+                assert.equal(dups, 1);
+                mon.unwatch();
+                delete mon;
+                done();
+            }
+        });
+        addBlockOp(1, A1, A2, C0, 500);
+        setTimeout(() => {           
+            mon.restoreState({ lastBlock: 0, blocksTx: {}, blocksOp: {} });
+            addBlockOp(1, A1, A2, C0, 500); 
+        }, 50);
+        setTimeout(() => {           
+            mon.restoreState({ lastBlock: 0, blocksTx: {}, blocksOp: {} });
+            addBlockOp(1, A1, A2, C0, 500); 
+        }, 100);
+        setTimeout(() => addBlockOp(2, A1, A2, C0, 500), 150);
+        mon.watch();
+    });
 });
 
 function addNextBlockTx(from, to, contract, value, valueETH, success = true, noOperation = false) {

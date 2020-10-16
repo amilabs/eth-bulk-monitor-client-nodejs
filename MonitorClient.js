@@ -36,6 +36,9 @@ let lastTxTs = 0;
 // Ethereum pseudo-token addess
 const ETHAddress = '0x0000000000000000000000000000000000000000';
 
+// Events already emitted
+const eventsEmitted = {};
+
 class MonitorClient extends EventEmitter {
     /**
      * Constructor.
@@ -249,8 +252,8 @@ class MonitorClient extends EventEmitter {
     intervalHandler() {
         return async () => {
             try {
+                const dataEvents = [];
                 if (!this.watching) return;
-                const eventsEmitted = {};
                 const blocksToAddTransactions = [];
                 const blocksToAddOperations = [];
 
@@ -269,7 +272,7 @@ class MonitorClient extends EventEmitter {
                                     if (eventsEmitted[eventName] === undefined) {
                                         lastTxTs = data.timestamp * 1000;
                                         eventsEmitted[eventName] = true;
-                                        setImmediate(() => this.emit('data', { address, data, type: 'transaction' }));
+                                        dataEvents.push({ address, data, type: 'transaction' });
                                     }
                                 }
                                 if (blocksToAddTransactions.indexOf(data.blockNumber) < 0) {
@@ -299,7 +302,7 @@ class MonitorClient extends EventEmitter {
                                         const eventName = `op-${address}-${data.hash}-${data.priority}`;
                                         if (eventsEmitted[eventName] === undefined) {
                                             eventsEmitted[eventName] = true;
-                                            setImmediate(() => this.emit('data', { address, data, type: 'operation' }));
+                                            dataEvents.push({ address, data, type: 'operation' });
                                         }
                                     }
                                     if (blocksToAddOperations.indexOf(blockNumber) < 0) {
@@ -326,6 +329,13 @@ class MonitorClient extends EventEmitter {
                     }
                     lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', this.state));
+                }
+                if (dataEvents.length > 0) {
+                    setImmediate(() => {
+                        for (let i = 0; i < dataEvents.length; i++) {
+                            this.emit('data', dataEvents[i]);
+                        }
+                    });
                 }
             } catch (e) {
                 this.errors++;

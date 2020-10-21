@@ -24,7 +24,8 @@ const errorMessages = {
     invalid_state: 'Invalid state object',
     request_failed: 'Request failed:',
     unknown_method: 'Unknown API method',
-    already_watching: 'Watching is already started, use unwatch first'
+    already_watching: 'Watching is already started, use unwatch first',
+    err_get_updates: 'Can not get last pool updates'
 };
 
 // Last unwatch event timestamp
@@ -35,6 +36,9 @@ let lastTxTs = 0;
 
 // Ethereum pseudo-token addess
 const ETHAddress = '0x0000000000000000000000000000000000000000';
+
+// Events already emitted
+const eventsEmitted = {};
 
 class MonitorClient extends EventEmitter {
     /**
@@ -115,37 +119,21 @@ class MonitorClient extends EventEmitter {
         if (!state || (state.lastBlock === undefined)) {
             throw new Error(errorMessages.invalid_state);
         }
-        if (!state.blocksTx) {
-            state.blocksTx = {};
-        }
-        if (!state.blocksOp) {
-            state.blocksOp = {};
-        }
-        if (state.blocks) {
-            delete state.blocks;
-        }
+        delete state.blocksTx;
+        delete state.blocksOp;
+        delete state.blocks;
         lastUnwatchTs = state.lastTs ? state.lastTs : 0;
         this.state = state;
     }
 
     /**
-     * Checks if the transactions block was already processed.
+     * Checks if the block was already processed.
      *
      * @param {int} blockNumber
      * @returns {Boolean}
      */
-    isTxBlockProcessed(blockNumber) {
-        return (this.state.blocksTx[blockNumber] !== undefined);
-    }
-
-    /**
-     * Checks if the operations block was already processed.
-     *
-     * @param {int} blockNumber
-     * @returns {Boolean}
-     */
-    isOpBlockProcessed(blockNumber) {
-        return (this.state.blocksOp[blockNumber] !== undefined);
+    isBlockProcessed(blockNumber) {
+        return this.state.blockNumber < blockNumber;
     }
 
     /**
@@ -249,12 +237,16 @@ class MonitorClient extends EventEmitter {
     intervalHandler() {
         return async () => {
             try {
+                const dataEvents = [];
                 if (!this.watching) return;
-                const eventsEmitted = {};
                 const blocksToAddTransactions = [];
                 const blocksToAddOperations = [];
-
-                const transactionsData = await this.getTransactions(lastUnwatchTs);
+                const updatesData = await this.getPoolUpdates(lastUnwatchTs);
+                if (!updatesData) {
+                    throw new Error(errorMessages.err_get_updates);
+                }
+                const transactionsData = updatesData.transactions;
+                const operationsData = updatesData.operations;
                 if (transactionsData) {
                     const { rate } = await this.getToken(ETHAddress);
                     Object.keys(transactionsData).forEach((address) => {
@@ -263,30 +255,26 @@ class MonitorClient extends EventEmitter {
                             const data = { ...txData[i], rate };
                             const skipFailed = (!this.options.watchFailed && !data.success);
                             data.usdValue = parseFloat((data.value * rate).toFixed(2));
-                            if (!skipFailed && data.blockNumber && !this.isTxBlockProcessed(data.blockNumber)) {
+                            if (!skipFailed && data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
                                 if (this.watching) {
                                     const eventName = `tx-${address}-${data.hash}`;
                                     if (eventsEmitted[eventName] === undefined) {
                                         lastTxTs = data.timestamp * 1000;
                                         eventsEmitted[eventName] = true;
-                                        setImmediate(() => this.emit('data', { address, data, type: 'transaction' }));
+                                        dataEvents.push({ address, data, type: 'transaction' });
                                     }
-                                }
-                                if (blocksToAddTransactions.indexOf(data.blockNumber) < 0) {
-                                    blocksToAddTransactions.push(data.blockNumber);
                                 }
                             }
                         }
                     });
                 }
-                const operationsData = await this.getOperations(lastUnwatchTs);
                 if (operationsData) {
                     await Promise.all(Object.keys(operationsData).map(address =>
                         Promise.all(operationsData[address].map(operation => this.getToken(operation.contract)
                             .then((token) => {
                                 const { blockNumber } = operation;
                                 const validOpType = (['approve'].indexOf(operation.type) < 0);
-                                if (blockNumber && !this.isOpBlockProcessed(blockNumber) && validOpType) {
+                                if (blockNumber && !this.isBlockProcessed(blockNumber) && validOpType) {
                                     const data = { ...operation, token };
                                     if (data.token && (data.token.decimals !== undefined)) {
                                         data.rawValue = data.value;
@@ -299,33 +287,24 @@ class MonitorClient extends EventEmitter {
                                         const eventName = `op-${address}-${data.hash}-${data.priority}`;
                                         if (eventsEmitted[eventName] === undefined) {
                                             eventsEmitted[eventName] = true;
-                                            setImmediate(() => this.emit('data', { address, data, type: 'operation' }));
+                                            dataEvents.push({ address, data, type: 'operation' });
                                         }
-                                    }
-                                    if (blocksToAddOperations.indexOf(blockNumber) < 0) {
-                                        blocksToAddOperations.push(blockNumber);
                                     }
                                 }
                             })))));
                 }
-                if (blocksToAddTransactions.length || blocksToAddOperations.length) {
-                    blocksToAddTransactions.forEach((block) => {
-                        if (this.state.lastBlock < block) {
-                            this.state.lastBlock = block;
-                        }
-                        this.state.blocksTx[block] = true;
-                    });
-                    blocksToAddOperations.forEach((block) => {
-                        if (this.state.lastBlock < block) {
-                            this.state.lastBlock = block;
-                        }
-                        this.state.blocksOp[block] = true;
-                    });
-                    if (!this.state.lastTs || lastTxTs > this.state.lastTs) {
-                        this.state.lastTs = lastTxTs;
-                    }
+                if (updatesData.lastBlock) {
+                    this.state.lastBlock = updatesData.lastBlock.block;
+                    this.state.lastTs = updatesData.lastBlock.timestamp;
                     lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', this.state));
+                }
+                if (dataEvents.length > 0) {
+                    setImmediate(() => {
+                        for (let i = 0; i < dataEvents.length; i++) {
+                            this.emit('data', dataEvents[i]);
+                        }
+                    });
                 }
             } catch (e) {
                 this.errors++;
@@ -424,7 +403,7 @@ class MonitorClient extends EventEmitter {
      * @returns {Object|null}
      */
     async getUpdates(method, startTime = 0) {
-        if (['getPoolLastTransactions', 'getPoolLastOperations'].indexOf(method) < 0) {
+        if (['getPoolLastTransactions', 'getPoolLastOperations', 'getPoolUpdates'].indexOf(method) < 0) {
             throw new Error(`${errorMessages.unknown_method} ${method}`);
         }
         const promise = this._getUpdates(method, startTime);
@@ -500,6 +479,16 @@ class MonitorClient extends EventEmitter {
             throw new Error(`${errorMessages.request_failed} ${e.message}`);
         }
         return result;
+    }
+
+    /**
+     * Returns last tracked transactions since the startTime
+     *
+     * @param {int} startTime
+     * @returns {Object|null}
+     */
+    async getPoolUpdates(startTime = 0) {
+        return this.getUpdates('getPoolUpdates', startTime);
     }
 
     /**

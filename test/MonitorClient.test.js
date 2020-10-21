@@ -10,6 +10,7 @@ const C0 = "0x0000000000000000000000000000000000000003";
 
 let transactions = {};
 let operations = {};
+let updates = { transactions, operations, lastBlock: { block: 0, timestamp: 0 } };
 
 let blockNumber = 1000;
 
@@ -69,6 +70,11 @@ describe('MonitorClient test', () => {
             .get((req, res) => {
                 res.json(transactions);
             });
+            
+        ws.route("/getPoolUpdates/poolId")
+            .get((req, res) => {
+                res.json(updates);
+            });
         this.server = ws.listen(63101);
     });
 
@@ -107,8 +113,7 @@ describe('MonitorClient test', () => {
         });
         mon.on("stateChanged", async (state) => {
             assert.equal(state.lastBlock, 1000);
-            assert.equal(state.blocksTx[1000], true);
-            assert.equal(state.blocksOp[1000], true);
+            assert.equal(state.lastTs, 1000);
             mon.unwatch();
         });
         mon.on("unwatched", () => {
@@ -124,8 +129,7 @@ describe('MonitorClient test', () => {
         const mon = new lib('apiKey', options);
         const savedState = {
             lastBlock: 1000,
-            blocksTx: { 1000: true },
-            blocksOp: { 1000: true },
+            lastTs: 1000,
         };
         mon.restoreState(savedState);
         mon.on("data", (eventData) => {
@@ -135,10 +139,7 @@ describe('MonitorClient test', () => {
         });
         mon.on("stateChanged", (state) => {
             assert.equal(state.lastBlock, 1001);
-            assert.equal(state.blocksTx[1000], true);
-            assert.equal(state.blocksTx[1001], true);
-            assert.equal(state.blocksOp[1000], true);
-            assert.equal(state.blocksOp[1001], true);
+            assert.equal(state.lastTs, 1001);
             mon.unwatch();
             delete mon;
             done();
@@ -261,6 +262,8 @@ function addNextBlockTx(from, to, contract, value, valueETH, success = true, noO
 
     transactions[from].push(tx);
 
+    updates = { transactions, operations, lastBlock: { block: blockNumber, timestamp: blockNumber } };
+
     blockNumber++;
 }
 
@@ -285,9 +288,12 @@ function addBlockOp(blockNumber, from, to, contract, value) {
     op.balances[to] = 10000;
 
     operations[from].push(op);
+    
+    updates = { transactions, operations, lastBlock: { block: blockNumber, timestamp: blockNumber } };
 }
 
 function clearTransactionsAndOperations() {
     transactions = {};
     operations = {};
+    updates = { transactions, operations, lastBlock: { block: 0, timestamp: 0 } };
 }

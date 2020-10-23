@@ -87,6 +87,10 @@ class MonitorApp {
 
         this.monitor.watch();
     }
+    
+    async unwatch() {
+        this.monitor.unwatch();
+    }
 }
 
 module.exports = MonitorApp;

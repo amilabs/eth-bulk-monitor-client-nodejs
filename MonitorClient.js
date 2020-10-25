@@ -96,8 +96,7 @@ class MonitorClient extends EventEmitter {
         this.state = {
             lastBlock: 0,
             lastTs: 0,
-            blocksTx: {},
-            blocksOp: {}
+            blocks: {}
         };
     }
 
@@ -121,7 +120,9 @@ class MonitorClient extends EventEmitter {
         }
         delete state.blocksTx;
         delete state.blocksOp;
-        delete state.blocks;
+        if (!state.blocks) {
+            state.blocks = {};
+        }
         lastUnwatchTs = state.lastTs ? state.lastTs : 0;
         this.state = state;
     }
@@ -133,7 +134,7 @@ class MonitorClient extends EventEmitter {
      * @returns {Boolean}
      */
     isBlockProcessed(blockNumber) {
-        return this.state.blockNumber < blockNumber;
+        return (this.state.blockNumber > blockNumber) || (this.state.blocks && this.state.blocks[blockNumber]);
     }
 
     /**
@@ -239,8 +240,7 @@ class MonitorClient extends EventEmitter {
             try {
                 const dataEvents = [];
                 if (!this.watching) return;
-                const blocksToAddTransactions = [];
-                const blocksToAddOperations = [];
+                const blocksToAdd = [];
                 const updatesData = await this.getPoolUpdates(lastUnwatchTs);
                 if (!updatesData) {
                     throw new Error(errorMessages.err_get_updates);
@@ -259,7 +259,7 @@ class MonitorClient extends EventEmitter {
                                 if (this.watching) {
                                     const eventName = `tx-${address}-${data.hash}`;
                                     if (eventsEmitted[eventName] === undefined) {
-                                        lastTxTs = data.timestamp * 1000;
+                                        blocksToAdd.push(data.blockNumber);
                                         eventsEmitted[eventName] = true;
                                         dataEvents.push({ address, data, type: 'transaction' });
                                     }
@@ -286,6 +286,7 @@ class MonitorClient extends EventEmitter {
                                     if (this.watching) {
                                         const eventName = `op-${address}-${data.hash}-${data.priority}`;
                                         if (eventsEmitted[eventName] === undefined) {
+                                            blocksToAdd.push(data.blockNumber);
                                             eventsEmitted[eventName] = true;
                                             dataEvents.push({ address, data, type: 'operation' });
                                         }
@@ -293,9 +294,14 @@ class MonitorClient extends EventEmitter {
                                 }
                             })))));
                 }
-                if (updatesData.lastBlock) {
-                    this.state.lastBlock = updatesData.lastBlock.block;
-                    this.state.lastTs = updatesData.lastBlock.timestamp;
+                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block != this.state.lastBlock) || blocksToAdd.length) {
+                    this.state.lastBlock = updatesData.lastSolidBlock.block;
+                    this.state.lastTs = updatesData.lastSolidBlock.timestamp;
+                    if (blocksToAdd.length) {
+                        for(let i=0; i<blocksToAdd.length; i++) {
+                            this.state.blocks[blocksToAdd[i]] = true;
+                        }
+                    }
                     lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', this.state));
                 }

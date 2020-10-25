@@ -138,6 +138,7 @@ describe('MonitorClient test', () => {
             assert.equal(eventData.data.hash, '1001');
         });
         mon.on("stateChanged", (state) => {
+            assert.equal(state.blocks['1001'], true);
             assert.equal(state.lastBlock, 1001);
             assert.equal(state.lastTs, 1001);
             mon.unwatch();
@@ -187,25 +188,6 @@ describe('MonitorClient test', () => {
         }, 0);
         mon.watch();
     });
-
-    it('should watch operation if it was added after same block transaction', (done) => {
-        clearTransactionsAndOperations();
-        addNextBlockTx(A1, A2, C0, 500, 1, true, true);
-        const mon = new lib('apiKey', {...options });
-        mon.on("data", (eventData) => {
-            if(eventData.type === 'transaction') {
-                assert.equal(eventData.data.blockNumber, 1005);
-                addBlockOp(eventData.data.blockNumber, A1, A2, C0, 500);
-            }
-            if(eventData.type === 'operation') {
-                assert.equal(eventData.data.blockNumber, 1005);
-                mon.unwatch();
-                delete mon;
-                done();
-            }
-        });
-        mon.watch();
-    });
     
     it('should not raise data event for duplicate data', (done) => {
         clearTransactionsAndOperations();
@@ -224,11 +206,11 @@ describe('MonitorClient test', () => {
         });
         addBlockOp(1, A1, A2, C0, 500);
         setTimeout(() => {           
-            mon.restoreState({ lastBlock: 0, blocksTx: {}, blocksOp: {} });
+            mon.restoreState({ lastBlock: 0, lastTs: 0, blocks: {} });
             addBlockOp(1, A1, A2, C0, 500); 
         }, 50);
         setTimeout(() => {           
-            mon.restoreState({ lastBlock: 0, blocksTx: {}, blocksOp: {} });
+            mon.restoreState({ lastBlock: 0, lastTs: 0, blocks: {} });
             addBlockOp(1, A1, A2, C0, 500); 
         }, 100);
         setTimeout(() => addBlockOp(2, A1, A2, C0, 500), 150);
@@ -262,7 +244,7 @@ function addNextBlockTx(from, to, contract, value, valueETH, success = true, noO
 
     transactions[from].push(tx);
 
-    updates = { transactions, operations, lastBlock: { block: blockNumber, timestamp: blockNumber } };
+    updates = { transactions, operations, lastSolidBlock: { block: blockNumber, timestamp: blockNumber } };
 
     blockNumber++;
 }
@@ -289,11 +271,11 @@ function addBlockOp(blockNumber, from, to, contract, value) {
 
     operations[from].push(op);
     
-    updates = { transactions, operations, lastBlock: { block: blockNumber, timestamp: blockNumber } };
+    updates = { transactions, operations, lastSolidBlock: { block: blockNumber, timestamp: blockNumber } };
 }
 
 function clearTransactionsAndOperations() {
     transactions = {};
     operations = {};
-    updates = { transactions, operations, lastBlock: { block: 0, timestamp: 0 } };
+    updates = { transactions, operations, lastSolidBlock: { block: 0, timestamp: 0 } };
 }

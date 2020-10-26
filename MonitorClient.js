@@ -348,7 +348,7 @@ class MonitorClient extends EventEmitter {
                             symbol: 'Unknown',
                             decimals: 0
                         };
-                        return this.tokensCache[address].result ? this.tokensCache[address].result : unknownToken;
+                        return (this.tokensCache[address] && this.tokensCache[address].result) ? this.tokensCache[address].result : unknownToken;
                     }
                 }
             }

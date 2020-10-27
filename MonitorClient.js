@@ -261,7 +261,7 @@ class MonitorClient extends EventEmitter {
                                     if (eventsEmitted[eventName] === undefined) {
                                         blocksToAdd.push(data.blockNumber);
                                         eventsEmitted[eventName] = true;
-                                        dataEvents.push({ address, data, type: 'transaction' });
+                                        dataEvents.push({ address, data, type: 'transaction', updatesData });
                                     }
                                 }
                             }
@@ -288,7 +288,7 @@ class MonitorClient extends EventEmitter {
                                         if (eventsEmitted[eventName] === undefined) {
                                             blocksToAdd.push(data.blockNumber);
                                             eventsEmitted[eventName] = true;
-                                            dataEvents.push({ address, data, type: 'operation' });
+                                            dataEvents.push({ address, data, type: 'operation', updatesData });
                                         }
                                     }
                                 }

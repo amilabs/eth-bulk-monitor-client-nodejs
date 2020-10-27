@@ -58,10 +58,9 @@ class MonitorApp {
      * Starts watching for addresses changes.
      * Will create a new pool if no poolId was stored in the watching state
      * @param {array} addresses
-     * @param {function} watchCallback
-     * @param {function} unwatchCallback
+     * @param {function} callback
      */
-    async watch(addresses = [], watchCallback, unwatchCallback) {
+    async watch(addresses = [], callback) {
         let isNew = false;
         if (this.state.poolId === false) {
             // Create a new pool
@@ -75,17 +74,16 @@ class MonitorApp {
         if (!isNew) {
             await this.monitor.removeAllListeners();            
             await this.monitor.removeAllAddresses();
-            await this.monitor.addAddresses(addresses);
+            await this.monitor.unwatch();
+            if (addresses.length>0) await this.monitor.addAddresses(addresses);            
         }
 
-        if (typeof (watchCallback) === 'function') {
-            this.monitor.on('data', watchCallback);
-        }
-        if (typeof (unwatchCallback) === 'function') {
-            this.monitor.on('unwatched', unwatchCallback);
+        if (typeof (callback) === 'function') {
+            this.monitor.on('data', callback);
         }
         this.monitor.on('stateChanged', () => this.saveState);
-        this.monitor.watch();
+
+        if (addresses.length>0) this.monitor.watch();
     }
     
     async unwatch() {

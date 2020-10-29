@@ -261,7 +261,7 @@ class MonitorClient extends EventEmitter {
                                     if (eventsEmitted[eventName] === undefined) {
                                         blocksToAdd.push(data.blockNumber);
                                         eventsEmitted[eventName] = true;
-                                        dataEvents.push({ address, data, type: 'transaction', updatesData });
+                                        dataEvents.push({ address, data, type: 'transaction' });
                                     }
                                 }
                             }
@@ -282,13 +282,14 @@ class MonitorClient extends EventEmitter {
                                         if (data.token.rate) {
                                             data.usdValue = parseFloat((data.value * data.token.rate).toFixed(2));
                                         }
+                                        data.value = data.value.toFixed(Math.max(data.token.decimals, 10)).replace(/\.(.*?)0+$/, '.$1').replace(/\.$/, '');
                                     }
                                     if (this.watching) {
                                         const eventName = `op-${address}-${data.hash}-${data.priority}`;
                                         if (eventsEmitted[eventName] === undefined) {
                                             blocksToAdd.push(data.blockNumber);
                                             eventsEmitted[eventName] = true;
-                                            dataEvents.push({ address, data, type: 'operation', updatesData });
+                                            dataEvents.push({ address, data, type: 'operation' });
                                         }
                                     }
                                 }

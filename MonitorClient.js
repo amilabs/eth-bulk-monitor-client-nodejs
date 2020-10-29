@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
 const got = require('got');
 const FormData = require('form-data');
+const BigNumber = require('bignumber.js');
 
 // Known networks
 const networks = {
@@ -98,6 +99,7 @@ class MonitorClient extends EventEmitter {
             lastTs: 0,
             blocks: {}
         };
+        BigNumber.config({ ERRORS: false });
     }
 
     /**
@@ -278,11 +280,11 @@ class MonitorClient extends EventEmitter {
                                     const data = { ...operation, token };
                                     if (data.token && (data.token.decimals !== undefined)) {
                                         data.rawValue = data.value;
-                                        data.value /= (10 ** data.token.decimals);
+                                        const bn = (new BigNumber(data.value)).div(Math.pow(10, data.token.decimals));
+                                        data.value = bn.toString(10);
                                         if (data.token.rate) {
-                                            data.usdValue = parseFloat((data.value * data.token.rate).toFixed(2));
+                                            data.usdValue = parseFloat((parseFloat(data.value) * data.token.rate).toFixed(2));
                                         }
-                                        data.value = data.value.toFixed(Math.max(data.token.decimals, 10)).replace(/\.(.*?)0+$/, '.$1').replace(/\.$/, '');
                                     }
                                     if (this.watching) {
                                         const eventName = `op-${address}-${data.hash}-${data.priority}`;

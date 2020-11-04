@@ -127,10 +127,7 @@ describe('MonitorClient test', () => {
     it('should restore the saved state', (done) => {
         addNextBlockTx(A1, A2, C0, 500, 1);
         const mon = new lib('apiKey', options);
-        const savedState = {
-            lastBlock: 1000,
-            lastTs: 1000,
-        };
+        const savedState = { lastBlock: 1000, lastTs: 1000 };
         mon.restoreState(savedState);
         mon.on("data", (eventData) => {
             assert.equal(eventData.address, A1);
@@ -138,7 +135,7 @@ describe('MonitorClient test', () => {
             assert.equal(eventData.data.hash, '1001');
         });
         mon.on("stateChanged", (state) => {
-            assert.equal(state.blocks['1001'], true);
+            assert.equal(Object.keys(state.blocks).length, 0);
             assert.equal(state.lastBlock, 1001);
             assert.equal(state.lastTs, 1001);
             mon.unwatch();
@@ -161,20 +158,24 @@ describe('MonitorClient test', () => {
 
     it('should watch failed if watchFailed flag is on', (done) => {
         clearTransactionsAndOperations();
-        addNextBlockTx(A1, A2, C0, 500, 1, false);
         const mon = new lib('apiKey', {...options, watchFailed: true });
+        mon.restoreState({ lastBlock: 0, lastTs: 0, blocks: {} });
         mon.on("data", (eventData) => {
             assert.equal(eventData.data.success, false);
             mon.unwatch();
             delete mon;
             done();
         });
+        setTimeout(() => {
+            addNextBlockTx(A1, A2, C0, 500, 1, false);
+        }, 0);
         mon.watch();
     });
 
     it('should not watch failed if watchFailed flag is off', (done) => {
         clearTransactionsAndOperations();
         const mon = new lib('apiKey', {...options });
+        mon.restoreState({ lastBlock: 0, lastTs: 0, blocks: {} });
         mon.on("data", (eventData) => {
             if(eventData.type === 'transaction') {
                 assert.equal(eventData.data.success, true);
@@ -192,6 +193,7 @@ describe('MonitorClient test', () => {
     it('should not raise data event for duplicate data', (done) => {
         clearTransactionsAndOperations();
         const mon = new lib('apiKey', {...options, watchFailed: true });
+        mon.restoreState({ lastBlock: 0, lastTs: 0, blocks: {} });
         let dups = 0;
         mon.on("data", (eventData) => {
             if(eventData.data.blockNumber === 1) {
@@ -206,11 +208,9 @@ describe('MonitorClient test', () => {
         });
         addBlockOp(1, A1, A2, C0, 500);
         setTimeout(() => {           
-            mon.restoreState({ lastBlock: 0, lastTs: 0, blocks: {} });
             addBlockOp(1, A1, A2, C0, 500); 
         }, 50);
         setTimeout(() => {           
-            mon.restoreState({ lastBlock: 0, lastTs: 0, blocks: {} });
             addBlockOp(1, A1, A2, C0, 500); 
         }, 100);
         setTimeout(() => addBlockOp(2, A1, A2, C0, 500), 150);

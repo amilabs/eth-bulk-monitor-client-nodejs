@@ -22,9 +22,9 @@ pipeline {
                 script{
                     withCredentials([string(credentialsId: 'amilabs-npm-token', variable: 'NPM_PUBLSH_KEY')]) {
                         sh "git reset --hard"
-                        sh """echo _auth=$NPM_PUBLSH_KEY >> .npmrc"
-                        echo email=jenkins@amilabs.pro >> .npmrc"
-                        echo always-auth=true >> .npmrc"""
+                        sh "echo _auth=$NPM_PUBLSH_KEY >> .npmrc"
+                        sh "echo email=jenkins@amilabs.pro >> .npmrc"
+                        sh "echo always-auth=true >> .npmrc"
                         sh "cat .npmrc"
                         sh "npm version from-git && npm publish || true"
                     }

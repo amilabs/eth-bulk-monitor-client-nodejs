@@ -13,7 +13,7 @@ pipeline {
             dir("test"){
                 script{
                     sh "npm i"
-                    sh "mocha  --exit --reporter mocha-junit-reporter specs/"
+                    sh "npx mocha  --exit --reporter mocha-junit-reporter specs/"
                     junit "test-results.xml"
                 }
             }

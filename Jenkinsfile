@@ -21,13 +21,12 @@ pipeline {
           steps {
                 script{
                     withCredentials([string(credentialsId: 'amilabs-npm-token', variable: 'NPM_PUBLSH_KEY')]) {
-                        sh "echo _auth=$NPM_PUBLSH_KEY >> .npmrc"
-                        sh "echo email=jenkins@amilabs.pro >> .npmrc"
-                        sh "echo always-auth=true >> .npmrc"
+                        sh "git reset --hard"
+                        sh """echo _auth=$NPM_PUBLSH_KEY >> .npmrc"
+                        echo email=jenkins@amilabs.pro >> .npmrc"
+                        echo always-auth=true >> .npmrc"""
                         sh "cat .npmrc"
-                        sh "npm version --no-git-tag-version $(npm view eth-bulk-monitor-client-nodejs@latest version)"
-                        sh "npm version --no-git-tag-version prerelease"
-                        sh "npm publish"
+                        sh "npm version from-git && npm publish || true"
                     }
                 }
           }

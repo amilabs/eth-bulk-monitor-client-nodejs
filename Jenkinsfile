@@ -10,13 +10,11 @@ pipeline {
         }
         stage("Run tests") {
           steps {
-            dir("test"){
                 script{
                     sh "npm i"
-                    sh "npx mocha  --exit --reporter mocha-junit-reporter specs/"
+                    sh "npx mocha  --exit --reporter mocha-junit-reporter test/"
                     junit "test-results.xml"
                 }
-            }
           }
         }
     }

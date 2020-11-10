@@ -31,9 +31,6 @@ const errorMessages = {
 // Last unwatch event timestamp
 let lastUnwatchTs = 0;
 
-// Last processed tx timestamp
-let lastTxTs = 0;
-
 // Ethereum pseudo-token addess
 const ETHAddress = '0x0000000000000000000000000000000000000000';
 
@@ -294,11 +291,12 @@ class MonitorClient extends EventEmitter {
                                 }
                             })))));
                 }
-                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block != this.state.lastBlock) || blocksToAdd.length) {
+                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== this.state.lastBlock)
+                    || blocksToAdd.length) {
                     this.state.lastBlock = updatesData.lastSolidBlock.block;
                     this.state.lastTs = updatesData.lastSolidBlock.timestamp;
                     if (blocksToAdd.length) {
-                        for(let i=0; i<blocksToAdd.length; i++) {
+                        for (let i = 0; i < blocksToAdd.length; i++) {
                             this.state.blocks[blocksToAdd[i]] = true;
                         }
                     }
@@ -348,7 +346,8 @@ class MonitorClient extends EventEmitter {
                             symbol: 'Unknown',
                             decimals: 0
                         };
-                        return (this.tokensCache[address] && this.tokensCache[address].result) ? this.tokensCache[address].result : unknownToken;
+                        return (this.tokensCache[address] && this.tokensCache[address].result) ?
+                            this.tokensCache[address].result : unknownToken;
                     }
                 }
             }

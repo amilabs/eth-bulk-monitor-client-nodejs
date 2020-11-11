@@ -22,7 +22,6 @@ pipeline {
                 script{
                     withCredentials([string(credentialsId: 'amilabs-npm-token', variable: 'NPM_TOKEN')]) {
                         sh "git reset --hard"
-                        sh "echo _auth=$NPM_TOKEN >> .npmrc"
                         sh "echo //registry.npmjs.org/:_authToken=${env.NPM_TOKEN} > .npmrc"
                         sh "echo email=jenkins@amilabs.pro >> .npmrc"
                         sh "echo always-auth=true >> .npmrc"

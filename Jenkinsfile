@@ -25,8 +25,6 @@ pipeline {
                         sh "echo _auth=$NPM_PUBLSH_KEY >> .npmrc"
                         sh "echo email=jenkins@amilabs.pro >> .npmrc"
                         sh "echo always-auth=true >> .npmrc"
-                        sh "cat .npmrc"
-                        sh 'npm whoami'
                         sh "npm version from-git && npm publish || true"
                     }
                 }

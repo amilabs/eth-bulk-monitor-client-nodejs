@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
 const got = require('got');
 const FormData = require('form-data');
+const BigNumber = require('bignumber.js');
 
 // Known networks
 const networks = {
@@ -98,6 +99,7 @@ class MonitorClient extends EventEmitter {
             lastTs: 0,
             blocks: {}
         };
+        BigNumber.config({ ERRORS: false });
     }
 
     /**
@@ -134,7 +136,7 @@ class MonitorClient extends EventEmitter {
      * @returns {Boolean}
      */
     isBlockProcessed(blockNumber) {
-        return (this.state.blockNumber > blockNumber) || (this.state.blocks && this.state.blocks[blockNumber]);
+        return (this.state.lastBlock >= blockNumber) || (this.state.blocks && this.state.blocks[blockNumber]);
     }
 
     /**
@@ -260,7 +262,7 @@ class MonitorClient extends EventEmitter {
                                     const eventName = `tx-${address}-${data.hash}`;
                                     if (eventsEmitted[eventName] === undefined) {
                                         blocksToAdd.push(data.blockNumber);
-                                        eventsEmitted[eventName] = true;
+                                        eventsEmitted[eventName] = data.blockNumber;
                                         dataEvents.push({ address, data, type: 'transaction' });
                                     }
                                 }
@@ -278,16 +280,17 @@ class MonitorClient extends EventEmitter {
                                     const data = { ...operation, token };
                                     if (data.token && (data.token.decimals !== undefined)) {
                                         data.rawValue = data.value;
-                                        data.value /= (10 ** data.token.decimals);
+                                        const bn = (new BigNumber(data.value)).div(Math.pow(10, data.token.decimals));
+                                        data.value = bn.toString(10);
                                         if (data.token.rate) {
-                                            data.usdValue = parseFloat((data.value * data.token.rate).toFixed(2));
+                                            data.usdValue = parseFloat((parseFloat(data.value) * data.token.rate).toFixed(2));
                                         }
                                     }
                                     if (this.watching) {
                                         const eventName = `op-${address}-${data.hash}-${data.priority}`;
                                         if (eventsEmitted[eventName] === undefined) {
                                             blocksToAdd.push(data.blockNumber);
-                                            eventsEmitted[eventName] = true;
+                                            eventsEmitted[eventName] = data.blockNumber;
                                             dataEvents.push({ address, data, type: 'operation' });
                                         }
                                     }
@@ -304,6 +307,7 @@ class MonitorClient extends EventEmitter {
                     }
                     lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', this.state));
+                    this.clearCachedBlocks();
                 }
                 if (dataEvents.length > 0) {
                     setImmediate(() => {
@@ -348,6 +352,8 @@ class MonitorClient extends EventEmitter {
                             symbol: 'Unknown',
                             decimals: 0
                         };
+                        // Clear lock
+                        delete this.tokensCacheLocks[address];
                         return (this.tokensCache[address] && this.tokensCache[address].result) ? this.tokensCache[address].result : unknownToken;
                     }
                 }
@@ -515,6 +521,36 @@ class MonitorClient extends EventEmitter {
      */
     async getOperations(startTime = 0) {
         return this.getUpdates('getPoolLastOperations', startTime);
+    }
+    
+    /**
+     * Clears cached blocks and tx/op data
+     * 
+     * @returns {undefined}
+     * @private
+     */
+    clearCachedBlocks() {
+        if (this.state && this.state.blocks) {
+            const blocks = Object.keys(this.state.blocks);
+            if (blocks.length) {
+                // Remove old blocks from the state
+                for (let i=0; i<blocks.length; i++) {
+                    const blockNumber = blocks[i];
+                    if (blockNumber <= this.state.lastBlock) {
+                        delete this.state.blocks[blockNumber];
+                    }
+                }
+                // Clear tx/op cache
+                const events = Object.keys(eventsEmitted);
+                for (let i=0; i<events.length; i++) {
+                    const eventName = events[i];
+                    const eventBlock = eventsEmitted[eventName];
+                    if (eventBlock <= this.state.lastBlock) {
+                        delete eventsEmitted[eventName];
+                    }
+                }
+            }
+        }
     }
 }
 

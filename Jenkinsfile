@@ -11,7 +11,7 @@ pipeline {
         stage("Run tests") {
           steps {
                 script{
-                    sh "npm i"
+                    sh "npm i --save-dev"
                     sh "npx mocha  --exit --reporter mocha-junit-reporter test/"
                     junit "test-results.xml"
                 }

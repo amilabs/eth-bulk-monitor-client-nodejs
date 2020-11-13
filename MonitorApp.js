@@ -72,10 +72,10 @@ class MonitorApp {
         this.monitor.credentials.poolId = this.state.poolId;
 
         if (!isNew) {
-            await this.monitor.removeAllListeners();            
+            await this.monitor.removeAllListeners();
             await this.monitor.removeAllAddresses();
             await this.monitor.unwatch();
-            if (addresses.length>0) await this.monitor.addAddresses(addresses);            
+            if (addresses.length > 0) await this.monitor.addAddresses(addresses);
         }
 
         if (typeof (callback) === 'function') {
@@ -83,9 +83,9 @@ class MonitorApp {
         }
         this.monitor.on('stateChanged', () => this.saveState);
 
-        if (addresses.length>0) this.monitor.watch();
+        if (addresses.length > 0) this.monitor.watch();
     }
-    
+
     async unwatch() {
         this.monitor.unwatch();
     }

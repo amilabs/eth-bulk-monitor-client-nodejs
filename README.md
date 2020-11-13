@@ -31,6 +31,11 @@ monitorApp.watch([
 
 Voila, now we can get and process all the new transactions and ERC-20 operations for the specified addresses using just a single npm library and Node.js.
 
+## Examples
+
+- [Basic example](examples/basicExample.js)
+- [Exchange real working example](https://github.com/amilabs/crypto-exchange/tree/main/example)
+
 ## Class reference
 
 You can find the complete class reference [here](reference.md).

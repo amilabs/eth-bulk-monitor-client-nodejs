@@ -18,9 +18,7 @@ pipeline {
           }
         }
         stage("Publish") {
-          when {
-             tag 'v*'
-          }
+          when { tag 'v*' }
           steps {
                 script{
                     withCredentials([string(credentialsId: 'amilabs-npm-token', variable: 'NPM_TOKEN')]) {

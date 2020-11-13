@@ -5,7 +5,7 @@ https://docs.ethplorer.io/monitor
 
 ## Quickstart
 
-In this quickstart, you'll learn how to monitor your Ethereum addresses with Ethplorer Bulk API and and Node.js.
+Learn how to start tracking your Ethereum addresses with Ethplorer Bulk API and and Node.js.
 
 First of all, let's include MonitorApp class:
 ```
@@ -34,8 +34,8 @@ Voila, now we can get and process all the new transactions and ERC-20 operations
 ## Examples
 
 - [Basic example](examples/basicExample.js)
-- [Exchange real working example](https://github.com/amilabs/crypto-exchange/tree/main/example)
+- [Exchange working example](https://github.com/amilabs/crypto-exchange/tree/main/example)
 
-## Class reference
+## Reference
 
-You can find the complete class reference [here](reference.md).
+You can find the class reference [here](reference.md).

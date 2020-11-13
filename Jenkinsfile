@@ -18,6 +18,9 @@ pipeline {
           }
         }
         stage("Publish") {
+          when {
+             tag 'v*'
+          }
           steps {
                 script{
                     withCredentials([string(credentialsId: 'amilabs-npm-token', variable: 'NPM_TOKEN')]) {
@@ -25,7 +28,7 @@ pipeline {
                         sh "echo //registry.npmjs.org/:_authToken=${env.NPM_TOKEN} > .npmrc"
                         sh "echo email=jenkins@amilabs.pro >> .npmrc"
                         sh "echo always-auth=true >> .npmrc"
-                        sh "npm version from-git && npm publish || true"
+                        sh "npm publish"
                     }
                 }
           }

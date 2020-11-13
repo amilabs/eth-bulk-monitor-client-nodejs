@@ -1,6 +1,6 @@
 {
   "name": "eth-bulk-monitor-client-nodejs",
-  "version": "0.0.3",
+  "version": "0.0.10",
   "description": "Ethplorer bulk Monitor API nodejs client",
   "main": "index.js",
   "devDependencies": {
@@ -14,7 +14,9 @@
     "husky": "1.3.1",
     "less": "2.7.3",
     "precise-commits": "1.0.2",
-    "pretty-quick": "1.10.0"
+    "pretty-quick": "1.10.0",
+    "mocha": "8.2.1",
+    "mocha-junit-reporter": "2.0.0"
   },
   "scripts": {
     "lint": "eslint ./imports ./server ./client ./*.js --ext js",
@@ -34,7 +36,7 @@
   },
   "homepage": "https://github.com/amilabs/eth-bulk-monitor-client-nodejs#readme",
   "dependencies": {
-    "bignumber.js": "^9.0.1",
+    "bignumber.js": "9.0.1",
     "express": "4.17.1",
     "form-data": "3.0.0",
     "got": "11.3.0"

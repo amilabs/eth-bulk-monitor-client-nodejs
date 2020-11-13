@@ -32,9 +32,6 @@ const errorMessages = {
 // Last unwatch event timestamp
 let lastUnwatchTs = 0;
 
-// Last processed tx timestamp
-let lastTxTs = 0;
-
 // Ethereum pseudo-token addess
 const ETHAddress = '0x0000000000000000000000000000000000000000';
 
@@ -280,10 +277,11 @@ class MonitorClient extends EventEmitter {
                                     const data = { ...operation, token };
                                     if (data.token && (data.token.decimals !== undefined)) {
                                         data.rawValue = data.value;
-                                        const bn = (new BigNumber(data.value)).div(Math.pow(10, data.token.decimals));
+                                        const bn = (new BigNumber(data.value)).div(10 ** data.token.decimals);
                                         data.value = bn.toString(10);
                                         if (data.token.rate) {
-                                            data.usdValue = parseFloat((parseFloat(data.value) * data.token.rate).toFixed(2));
+                                            data.usdValue = parseFloat((parseFloat(data.value) * data.token.rate)
+                                                .toFixed(2));
                                         }
                                     }
                                     if (this.watching) {
@@ -297,11 +295,12 @@ class MonitorClient extends EventEmitter {
                                 }
                             })))));
                 }
-                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block != this.state.lastBlock) || blocksToAdd.length) {
+                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== this.state.lastBlock) ||
+                    blocksToAdd.length) {
                     this.state.lastBlock = updatesData.lastSolidBlock.block;
                     this.state.lastTs = updatesData.lastSolidBlock.timestamp;
                     if (blocksToAdd.length) {
-                        for(let i=0; i<blocksToAdd.length; i++) {
+                        for (let i = 0; i < blocksToAdd.length; i++) {
                             this.state.blocks[blocksToAdd[i]] = true;
                         }
                     }
@@ -354,7 +353,8 @@ class MonitorClient extends EventEmitter {
                         };
                         // Clear lock
                         delete this.tokensCacheLocks[address];
-                        return (this.tokensCache[address] && this.tokensCache[address].result) ? this.tokensCache[address].result : unknownToken;
+                        return (this.tokensCache[address] && this.tokensCache[address].result) ?
+                            this.tokensCache[address].result : unknownToken;
                     }
                 }
             }
@@ -522,10 +522,10 @@ class MonitorClient extends EventEmitter {
     async getOperations(startTime = 0) {
         return this.getUpdates('getPoolLastOperations', startTime);
     }
-    
+
     /**
      * Clears cached blocks and tx/op data
-     * 
+     *
      * @returns {undefined}
      * @private
      */
@@ -534,7 +534,7 @@ class MonitorClient extends EventEmitter {
             const blocks = Object.keys(this.state.blocks);
             if (blocks.length) {
                 // Remove old blocks from the state
-                for (let i=0; i<blocks.length; i++) {
+                for (let i = 0; i < blocks.length; i++) {
                     const blockNumber = blocks[i];
                     if (blockNumber <= this.state.lastBlock) {
                         delete this.state.blocks[blockNumber];
@@ -542,7 +542,7 @@ class MonitorClient extends EventEmitter {
                 }
                 // Clear tx/op cache
                 const events = Object.keys(eventsEmitted);
-                for (let i=0; i<events.length; i++) {
+                for (let i = 0; i < events.length; i++) {
                     const eventName = events[i];
                     const eventBlock = eventsEmitted[eventName];
                     if (eventBlock <= this.state.lastBlock) {

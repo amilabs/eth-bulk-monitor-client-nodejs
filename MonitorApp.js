@@ -9,6 +9,8 @@ const errorMessages = {
     no_api_key: 'No API Key specified'
 };
 
+let watching = false;
+
 class MonitorApp {
     /**
      * Constructor has the same params as the monitorClient class constructor.
@@ -57,37 +59,32 @@ class MonitorApp {
     /**
      * Starts watching for addresses changes.
      * Will create a new pool if no poolId was stored in the watching state
-     * @param {array} addresses
      * @param {function} callback
      */
-    async watch(addresses = [], callback) {
-        let isNew = false;
+    async watch(callback) {
+        if(watching) return;
+
         if (this.state.poolId === false) {
             // Create a new pool
-            this.state.poolId = await this.monitor.createPool(addresses);
+            this.state.poolId = await this.monitor.createPool();
             this.saveState();
-            isNew = true;
         }
 
         this.monitor.credentials.poolId = this.state.poolId;
-
-        if (!isNew) {
-            await this.monitor.removeAllListeners();
-            await this.monitor.removeAllAddresses();
-            await this.monitor.unwatch();
-            if (addresses.length > 0) await this.monitor.addAddresses(addresses);
-        }
 
         if (typeof (callback) === 'function') {
             this.monitor.on('data', callback);
         }
         this.monitor.on('stateChanged', () => this.saveState);
 
-        if (addresses.length > 0) this.monitor.watch();
+        this.monitor.watch();
+        watching = true;
     }
 
     async unwatch() {
+        this.monitor.removeAllListeners();
         this.monitor.unwatch();
+        watching = false;
     }
 }
 

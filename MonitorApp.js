@@ -62,7 +62,7 @@ class MonitorApp {
      * @param {function} callback
      */
     async watch(callback) {
-        if(watching) return;
+        if (watching === false) return;
 
         if (this.state.poolId === false) {
             // Create a new pool

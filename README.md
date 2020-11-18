@@ -34,7 +34,7 @@ Voila, now we can get and process all the new transactions and ERC-20 operations
 ## Examples
 
 - [Basic example](examples/basicExample.js)
-- [Exchange working example](https://github.com/amilabs/crypto-exchange/tree/main/example)
+- [Crypto exchanger working example](https://github.com/amilabs/crypto-exchanger/tree/main/example)
 
 ## Reference
 

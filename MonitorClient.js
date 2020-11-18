@@ -38,6 +38,13 @@ const ETHAddress = '0x0000000000000000000000000000000000000000';
 // Events already emitted
 const eventsEmitted = {};
 
+// Watching state
+const state = {
+    lastBlock: 0,
+    lastTs: 0,
+    blocks: {}
+};
+
 class MonitorClient extends EventEmitter {
     /**
      * Constructor.
@@ -90,12 +97,6 @@ class MonitorClient extends EventEmitter {
             throw new Error(errorMessages.custom_monitor_uri);
         }
         this.errors = 0;
-        // Watching state
-        this.state = {
-            lastBlock: 0,
-            lastTs: 0,
-            blocks: {}
-        };
         BigNumber.config({ ERRORS: false });
     }
 
@@ -105,25 +106,28 @@ class MonitorClient extends EventEmitter {
      * @returns {Promise}
      */
     async saveState() {
-        return this.state;
+        return state;
     }
 
     /**
      * Restores state from saved data.
      *
-     * @param {Object} state
+     * @param {Object} stateData
      */
-    restoreState(state) {
-        if (!state || (state.lastBlock === undefined)) {
+    restoreState(stateData) {
+        if (!stateData || (stateData.lastBlock === undefined)) {
             throw new Error(errorMessages.invalid_state);
         }
-        delete state.blocksTx;
-        delete state.blocksOp;
-        if (!state.blocks) {
-            state.blocks = {};
+        delete stateData.blocksTx;
+        delete stateData.blocksOp;
+        if (!stateData.blocks) {
+            stateData.blocks = {};
         }
-        lastUnwatchTs = state.lastTs ? state.lastTs : 0;
-        this.state = state;
+        lastUnwatchTs = stateData.lastTs ? stateData.lastTs : 0;
+        
+        state.lastBlock = stateData.lastBlock;
+        state.lastTs = stateData.lastTs;
+        state.blocks = stateData.blocks;
     }
 
     /**
@@ -133,7 +137,7 @@ class MonitorClient extends EventEmitter {
      * @returns {Boolean}
      */
     isBlockProcessed(blockNumber) {
-        return (this.state.lastBlock >= blockNumber) || (this.state.blocks && this.state.blocks[blockNumber]);
+        return (state.lastBlock >= blockNumber) || (state.blocks && state.blocks[blockNumber]);
     }
 
     /**
@@ -155,6 +159,26 @@ class MonitorClient extends EventEmitter {
     async deletePool() {
         await this.postBulkAPI('deletePool');
         return true;
+    }
+
+    /**
+     * Returns a list of addresses in the pool.
+     * 
+     * @returns {Array}
+     */
+    async getAddresses() {
+        let result = [];
+        const { apiKey, poolId } = this.credentials;
+        const url = `${this.options.monitor}/getPoolAddresses/${poolId}?apiKey=${apiKey}`;
+        try {
+            const data = this.processBulkAPIData(await got(url, { timeout: this.options.requestTimeout }));
+            if (data && data.addresses && data.addresses.length) {
+                result = data.addresses;
+            }
+        } catch (e) {
+            throw new Error(`${errorMessages.request_failed} ${e.message}`);
+        }
+        return result;
     }
 
     /**
@@ -295,17 +319,17 @@ class MonitorClient extends EventEmitter {
                                 }
                             })))));
                 }
-                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== this.state.lastBlock) ||
+                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== state.lastBlock) ||
                     blocksToAdd.length) {
-                    this.state.lastBlock = updatesData.lastSolidBlock.block;
-                    this.state.lastTs = updatesData.lastSolidBlock.timestamp;
+                    state.lastBlock = updatesData.lastSolidBlock.block;
+                    state.lastTs = updatesData.lastSolidBlock.timestamp;
                     if (blocksToAdd.length) {
                         for (let i = 0; i < blocksToAdd.length; i++) {
-                            this.state.blocks[blocksToAdd[i]] = true;
+                            state.blocks[blocksToAdd[i]] = true;
                         }
                     }
                     lastUnwatchTs = 0;
-                    setImmediate(() => this.emit('stateChanged', this.state));
+                    setImmediate(() => this.emit('stateChanged', state));
                     this.clearCachedBlocks();
                 }
                 if (dataEvents.length > 0) {
@@ -429,7 +453,7 @@ class MonitorClient extends EventEmitter {
         }
         let result = null;
         const startTs = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-        const lastTs = this.state.lastTs ? Math.floor((Date.now() / 1000 - this.state.lastTs)) : 0;
+        const lastTs = state.lastTs ? Math.floor((Date.now() / 1000 - state.lastTs)) : 0;
         const period = Math.min(Math.max(this.options.period, startTs, lastTs), 360000);
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
@@ -530,14 +554,14 @@ class MonitorClient extends EventEmitter {
      * @private
      */
     clearCachedBlocks() {
-        if (this.state && this.state.blocks) {
-            const blocks = Object.keys(this.state.blocks);
+        if (state && state.blocks) {
+            const blocks = Object.keys(state.blocks);
             if (blocks.length) {
                 // Remove old blocks from the state
                 for (let i = 0; i < blocks.length; i++) {
                     const blockNumber = blocks[i];
-                    if (blockNumber <= this.state.lastBlock) {
-                        delete this.state.blocks[blockNumber];
+                    if (blockNumber <= state.lastBlock) {
+                        delete state.blocks[blockNumber];
                     }
                 }
                 // Clear tx/op cache
@@ -545,7 +569,7 @@ class MonitorClient extends EventEmitter {
                 for (let i = 0; i < events.length; i++) {
                     const eventName = events[i];
                     const eventBlock = eventsEmitted[eventName];
-                    if (eventBlock <= this.state.lastBlock) {
+                    if (eventBlock <= state.lastBlock) {
                         delete eventsEmitted[eventName];
                     }
                 }

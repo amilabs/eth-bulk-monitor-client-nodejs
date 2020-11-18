@@ -124,7 +124,7 @@ class MonitorClient extends EventEmitter {
             stateData.blocks = {};
         }
         lastUnwatchTs = stateData.lastTs ? stateData.lastTs : 0;
-        
+
         state.lastBlock = stateData.lastBlock;
         state.lastTs = stateData.lastTs;
         state.blocks = stateData.blocks;
@@ -163,7 +163,7 @@ class MonitorClient extends EventEmitter {
 
     /**
      * Returns a list of addresses in the pool.
-     * 
+     *
      * @returns {Array}
      */
     async getAddresses() {

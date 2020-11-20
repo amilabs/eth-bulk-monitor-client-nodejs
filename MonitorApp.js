@@ -9,7 +9,11 @@ const errorMessages = {
     no_api_key: 'No API Key specified'
 };
 
+// Watching flag
 let watching = false;
+
+// Initialization flag
+let initialized = false;
 
 class MonitorApp {
     /**
@@ -40,14 +44,33 @@ class MonitorApp {
     }
 
     /**
-     * Saves the watching state to a file
+     * Initializes the app and add addresses to the pool.
+     *
+     * @param {array} addresses
+     */
+    async init(addresses) {
+        if (initialized) return;
+        if (this.state.poolId === false) {
+            // Create a new pool
+            this.state.poolId = await this.monitor.createPool();
+            this.saveState();
+        }
+        this.monitor.credentials.poolId = this.state.poolId;
+        if (addresses && addresses.length) {
+            this.monitor.addAddresses(addresses);
+        }
+        initialized = true;
+    }
+
+    /**
+     * Saves the app state to a file
      */
     saveState() {
         fs.writeFileSync(this.options.tmpFile, JSON.stringify(this.state));
     }
 
     /**
-     * Restores the watching state from a file.
+     * Restores the app state from a file.
      */
     restoreState() {
         if (fs.existsSync(this.options.tmpFile)) {
@@ -59,18 +82,13 @@ class MonitorApp {
     /**
      * Starts watching for addresses changes.
      * Will create a new pool if no poolId was stored in the watching state
+     *
      * @param {function} callback
      */
     async watch(callback) {
         if (watching === true) return;
 
-        if (this.state.poolId === false) {
-            // Create a new pool
-            this.state.poolId = await this.monitor.createPool();
-            this.saveState();
-        }
-
-        this.monitor.credentials.poolId = this.state.poolId;
+        await this.init();
 
         if (typeof (callback) === 'function') {
             this.monitor.on('data', callback);
@@ -81,6 +99,9 @@ class MonitorApp {
         watching = true;
     }
 
+    /**
+     * Stops watching and removes listeners
+     */
     async unwatch() {
         this.monitor.removeAllListeners();
         this.monitor.unwatch();

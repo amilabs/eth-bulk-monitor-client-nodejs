@@ -110,4 +110,3 @@ class MonitorApp {
 }
 
 module.exports = MonitorApp;
-

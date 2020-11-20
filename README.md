@@ -7,6 +7,17 @@ https://docs.ethplorer.io/monitor
 
 Learn how to start tracking your Ethereum addresses with Ethplorer Bulk API and and Node.js.
 
+Let's create a new project and add ```eth-bulk-monitor-client-nodejs``` library via npm.
+```
+$ mkdir monitor-example
+$ cd monitor-example
+$ npm init
+$ npm i --save eth-bulk-monitor-client-nodejs
+$ vim index.js
+```
+
+Create a new js file and start edit it.
+
 First of all, let's include MonitorApp class:
 ```
 const { MonitorApp } = require('eth-bulk-monitor-client-nodejs');
@@ -19,14 +30,11 @@ const monitorApp = new MonitorApp('put your API key here');
 
 Finally, lets define the addresses we would like to monitor and a callback function:
 ```
-monitorApp.watch([
+monitorApp.init([
     '0x0000000000000000000000000000000000000001',
     '0x0000000000000000000000000000000000000002',
     '0x0000000000000000000000000000000000000003'
-],
-(data) => {
-    console.log(data);
-});
+]).then(() => monitorApp.watch((data) => console.log(data));
 ```
 
 Voila, now we can get and process all the new transactions and ERC-20 operations for the specified addresses using just a single npm library and Node.js.

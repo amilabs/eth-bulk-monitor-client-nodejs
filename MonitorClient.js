@@ -447,6 +447,13 @@ class MonitorClient extends EventEmitter {
         return promise;
     }
 
+    /**
+     * Utility function fot getUpdates
+     *
+     * @param {string} method
+     * @param {int} startTime
+     * @returns {Object|null}
+     */
     async _getUpdates(method, startTime = 0) {
         if (!this.credentials.poolId) {
             throw new Error(errorMessages.no_pool_id);

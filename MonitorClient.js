@@ -379,7 +379,7 @@ class MonitorClient extends EventEmitter {
             let lockCheckCount = 0;
             if (this.tokensCacheLocks[address]) {
                 while (this.tokensCacheLocks[address]) {
-                    await new Promise((resolve) => { setTimeout(() => resolve(), 100); });
+                    await this._sleep(100);
                     lockCheckCount++;
                     if (lockCheckCount >= this.options.cacheLockCheckLimit) {
                         // No data on timeout
@@ -401,19 +401,28 @@ class MonitorClient extends EventEmitter {
             this.tokensCacheLocks[address] = true;
             let result = false;
             const { apiKey } = this.credentials;
-            const requestUrl = `${this.options.api}/getTokenInfo/${address}?apiKey=${apiKey}`;
-            const data = await got(requestUrl, { timeout: this.options.requestTimeout });
-            if (data && data.body) {
-                const tokenData = JSON.parse(data.body);
-                if (tokenData) {
-                    const { name, symbol, decimals } = tokenData;
-                    const rate = tokenData.price && tokenData.price.rate ? tokenData.price.rate : false;
-                    result = {
-                        name,
-                        symbol,
-                        decimals,
-                        rate
-                    };
+            let errorCount = 0;
+            while (!result && errorCount < 3) {
+                try {
+                    const requestUrl = `${this.options.api}/getTokenInfo/${address}?apiKey=${apiKey}`;
+                    const data = await got(requestUrl, { timeout: this.options.requestTimeout });
+                    if (data && data.body) {
+                        const tokenData = JSON.parse(data.body);
+                        if (tokenData) {
+                            const { name, symbol, decimals } = tokenData;
+                            const rate = tokenData.price && tokenData.price.rate ? tokenData.price.rate : false;
+                            result = {
+                                name,
+                                symbol,
+                                decimals,
+                                rate
+                            };
+                        }
+                    } else errorCount++;
+                } catch (e) {
+                    errorCount++;
+                    setImmediate(() => this.emit('exception', e));
+                    await this._sleep(1000);
                 }
             }
             // Use previously cached value on error
@@ -565,6 +574,15 @@ class MonitorClient extends EventEmitter {
      */
     async getOperations(startTime = 0) {
         return this.getUpdates('getPoolLastOperations', startTime);
+    }
+
+    /**
+     * Wait for N seconds in async function
+     *
+     * @param {int} time
+     */
+    _sleep(time) {
+        return new Promise((resolve) => { setTimeout(() => resolve(), time); });
     }
 
     /**

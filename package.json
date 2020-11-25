@@ -1,6 +1,6 @@
 {
   "name": "eth-bulk-monitor-client-nodejs",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "Ethplorer bulk Monitor API nodejs client",
   "main": "index.js",
   "devDependencies": {

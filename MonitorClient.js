@@ -280,11 +280,16 @@ class MonitorClient extends EventEmitter {
                             data.usdValue = parseFloat((data.value * rate).toFixed(2));
                             if (!skipFailed && data.blockNumber && !this.isBlockProcessed(data.blockNumber)) {
                                 if (this.watching) {
-                                    const eventName = `tx-${address}-${data.hash}`;
-                                    if (eventsEmitted[eventName] === undefined) {
+                                    const type = 'transaction';
+                                    const id = `${type}-${address}-${data.hash}`;
+                                    if (eventsEmitted[id] === undefined) {
                                         blocksToAdd.push(data.blockNumber);
-                                        eventsEmitted[eventName] = data.blockNumber;
-                                        dataEvents.push({ address, data, type: 'transaction' });
+                                        dataEvents.push({
+                                            id,
+                                            address,
+                                            data,
+                                            type
+                                        });
                                     }
                                 }
                             }
@@ -309,11 +314,16 @@ class MonitorClient extends EventEmitter {
                                         }
                                     }
                                     if (this.watching) {
-                                        const eventName = `op-${address}-${data.hash}-${data.priority}`;
-                                        if (eventsEmitted[eventName] === undefined) {
+                                        const type = 'operation';
+                                        const id = `${type}-${address}-${data.hash}-${data.priority}`;
+                                        if (eventsEmitted[id] === undefined) {
                                             blocksToAdd.push(data.blockNumber);
-                                            eventsEmitted[eventName] = data.blockNumber;
-                                            dataEvents.push({ address, data, type: 'operation' });
+                                            dataEvents.push({
+                                                id,
+                                                address,
+                                                data,
+                                                type
+                                            });
                                         }
                                     }
                                 }
@@ -335,7 +345,10 @@ class MonitorClient extends EventEmitter {
                 if (dataEvents.length > 0) {
                     setImmediate(() => {
                         for (let i = 0; i < dataEvents.length; i++) {
-                            this.emit('data', dataEvents[i]);
+                            const event = dataEvents[i];
+                            eventsEmitted[event.id] = true;
+                            delete event.id;
+                            this.emit('data', event);
                         }
                     });
                 }

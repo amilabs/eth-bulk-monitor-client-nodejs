@@ -44,7 +44,7 @@ class MonitorApp {
     }
 
     /**
-     * Initializes the app and add addresses to the pool.
+     * Initializes the app and adds addresses to the pool.
      *
      * @param {array} addresses
      */

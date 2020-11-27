@@ -595,7 +595,7 @@ class MonitorClient extends EventEmitter {
      * @param {int} time
      */
     _sleep(time) {
-        return new Promise((resolve) => { setTimeout(() => resolve(), time); });
+        return new Promise(resolve => setTimeout(resolve, time));
     }
 
     /**

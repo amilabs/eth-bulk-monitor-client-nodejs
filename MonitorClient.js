@@ -375,11 +375,11 @@ class MonitorClient extends EventEmitter {
         address = address.toLowerCase();
 
         if (this.tokensCacheLocks[address]) {
-            // If cache locked then wait repeatedly 0.1s for unlock
+            // If cache locked then wait repeatedly 0.3s for unlock
             let lockCheckCount = 0;
             if (this.tokensCacheLocks[address]) {
                 while (this.tokensCacheLocks[address]) {
-                    await this._sleep(100);
+                    await this._sleep(300);
                     lockCheckCount++;
                     if (lockCheckCount >= this.options.cacheLockCheckLimit) {
                         if (!this.tokensCache[address]) {
@@ -421,7 +421,10 @@ class MonitorClient extends EventEmitter {
                                 rate
                             };
                         }
-                    } else errorCount++;
+                    } else {
+                        errorCount++;
+                        await this._sleep(1000);
+                    }
                 } catch (e) {
                     if (errorCount === 0) {
                         this.emit('exception', e);

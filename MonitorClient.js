@@ -383,9 +383,7 @@ class MonitorClient extends EventEmitter {
                     lockCheckCount++;
                     if (lockCheckCount >= this.options.cacheLockCheckLimit) {
                         if (!this.tokensCache[address]) {
-                            this.emit('exception', {
-                                message: `Error retrieving locked token ${address}, "Unknown" used`
-                            });
+                            this.emit('exception', `Error retrieving locked token ${address}, "Unknown" used`);
                         }
                         // No data on timeout
                         const unknownToken = {

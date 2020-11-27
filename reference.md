@@ -14,20 +14,32 @@
 
 * [MonitorApp](#MonitorApp)
     * [new MonitorApp(apiKey, options)](#new_MonitorApp_new)
+    * [.init(addresses)](#MonitorApp+init)
     * [.saveState()](#MonitorApp+saveState)
     * [.restoreState()](#MonitorApp+restoreState)
-    * [.watch(addresses, callback)](#MonitorApp+watch)
+    * [.watch(callback)](#MonitorApp+watch)
 
 <a name="new_MonitorApp_new"></a>
 
 ### new MonitorApp(apiKey, options)
 Constructor has the same params as the monitorClient class constructor.
 
-
 | Param | Type |
 | --- | --- |
 | apiKey | <code>string</code> | 
 | options | <code>object</code> | 
+
+<a name="MonitorApp+init"></a>
+
+### monitorApp.init(addresses)
+Initializes client and adds addresses to the pool.
+It will create a new pool if no poolId was stored in the watching state
+
+**Kind**: instance method of [<code>MonitorApp</code>](#MonitorApp)  
+
+| Param | Type |
+| --- | --- |
+| addresses | <code>array</code> | 
 
 <a name="MonitorApp+saveState"></a>
 
@@ -43,15 +55,13 @@ Restores the watching state from a file.
 **Kind**: instance method of [<code>MonitorApp</code>](#MonitorApp)  
 <a name="MonitorApp+watch"></a>
 
-### monitorApp.watch(addresses, callback)
-Starts watching for addresses changes.
-Will create a new pool if no poolId was stored in the watching state
+### monitorApp.watch(callback)
+Starts watching for events.
 
 **Kind**: instance method of [<code>MonitorApp</code>](#MonitorApp)  
 
 | Param | Type |
 | --- | --- |
-| addresses | <code>array</code> | 
 | callback | <code>function</code> | 
 
 <a name="MonitorClient"></a>

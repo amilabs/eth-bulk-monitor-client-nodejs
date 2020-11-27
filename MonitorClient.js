@@ -382,6 +382,11 @@ class MonitorClient extends EventEmitter {
                     await this._sleep(100);
                     lockCheckCount++;
                     if (lockCheckCount >= this.options.cacheLockCheckLimit) {
+                        if (!this.tokensCache[address]) {
+                            this.emit('exception', {
+                                message: `Error retrieving locked token ${address}, "Unknown" used`
+                            });
+                        }
                         // No data on timeout
                         const unknownToken = {
                             name: 'Unknown',
@@ -420,11 +425,18 @@ class MonitorClient extends EventEmitter {
                         }
                     } else errorCount++;
                 } catch (e) {
+                    if (errorCount === 0) {
+                        this.emit('exception', e);
+                    }
                     errorCount++;
-                    setImmediate(() => this.emit('exception', e));
                     await this._sleep(1000);
                 }
             }
+
+            if (!result && !this.tokensCache[address]) {
+                throw new Error(`Cannot get token ${address} info after ${errorCount} attempts`);
+            }
+
             // Use previously cached value on error
             if (!result && this.tokensCache[address] && this.tokensCache[address].result) {
                 this.tokensCache[address].saveTs = Date.now();
@@ -489,7 +501,7 @@ class MonitorClient extends EventEmitter {
         try {
             result = this.processBulkAPIData(await got(url, { timeout: this.options.requestTimeout }));
         } catch (e) {
-            throw new Error(`${url} ${errorMessages.request_failed} ${e.message}`);
+            throw new Error(`${errorMessages.request_failed} ${e.message} (${url})`);
         }
         return result;
     }

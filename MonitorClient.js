@@ -176,7 +176,7 @@ class MonitorClient extends EventEmitter {
                 result = data.addresses;
             }
         } catch (e) {
-            throw new Error(`${errorMessages.request_failed} ${e.message}`);
+            throw new Error(`${url} ${errorMessages.request_failed} ${e.message}`);
         }
         return result;
     }
@@ -489,7 +489,7 @@ class MonitorClient extends EventEmitter {
         try {
             result = this.processBulkAPIData(await got(url, { timeout: this.options.requestTimeout }));
         } catch (e) {
-            throw new Error(`${errorMessages.request_failed} ${e.message}`);
+            throw new Error(`${url} ${errorMessages.request_failed} ${e.message}`);
         }
         return result;
     }
@@ -536,12 +536,12 @@ class MonitorClient extends EventEmitter {
             form.append('addresses', data.addresses.join());
         }
         let result = null;
+        const url = `${this.options.monitor}/${method}`;
         try {
-            const url = `${this.options.monitor}/${method}`;
             const d = await got.post(url, { body: form, timeout: this.options.requestTimeout });
             result = this.processBulkAPIData(d);
         } catch (e) {
-            throw new Error(`${errorMessages.request_failed} ${e.message}`);
+            throw new Error(`${url} POST ${errorMessages.request_failed} ${e.message}`);
         }
         return result;
     }

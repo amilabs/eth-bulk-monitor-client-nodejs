@@ -297,37 +297,42 @@ class MonitorClient extends EventEmitter {
                     });
                 }
                 if (operationsData) {
-                    await Promise.all(Object.keys(operationsData).map(address =>
-                        Promise.all(operationsData[address].map(operation => this.getToken(operation.contract)
-                            .then((token) => {
-                                const { blockNumber } = operation;
-                                const validOpType = (['approve'].indexOf(operation.type) < 0);
-                                if (blockNumber && !this.isBlockProcessed(blockNumber) && validOpType) {
-                                    const data = { ...operation, token };
-                                    if (data.token && (data.token.decimals !== undefined)) {
-                                        data.rawValue = data.value;
-                                        const bn = (new BigNumber(data.value)).div(10 ** data.token.decimals);
-                                        data.value = bn.toString(10);
-                                        if (data.token.rate) {
-                                            data.usdValue = parseFloat((parseFloat(data.value) * data.token.rate)
-                                                .toFixed(2));
-                                        }
-                                    }
-                                    if (this.watching) {
-                                        const type = 'operation';
-                                        const id = `${type}-${address}-${data.hash}-${data.priority}`;
-                                        if (eventsEmitted[id] === undefined) {
-                                            blocksToAdd.push(data.blockNumber);
-                                            dataEvents.push({
-                                                id,
-                                                address,
-                                                data,
-                                                type
-                                            });
-                                        }
+                    const addresses = Object.keys(operationsData);
+                    for (let j = 0; j < addresses.length; j++) {
+                        const address = addresses[j];
+                        const opData = operationsData[address];
+                        for (let i = 0; i < opData.length; i++) {
+                            const operation = opData[i];
+                            const { blockNumber } = operation;
+                            const token = await this.getToken(operation.contract);
+                            const validOpType = (['approve'].indexOf(operation.type) < 0);
+                            if (blockNumber && !this.isBlockProcessed(blockNumber) && validOpType) {
+                                const data = { ...operation, token };
+                                if (data.token && (data.token.decimals !== undefined)) {
+                                    data.rawValue = data.value;
+                                    const bn = (new BigNumber(data.value)).div(10 ** data.token.decimals);
+                                    data.value = bn.toString(10);
+                                    if (data.token.rate) {
+                                        data.usdValue = parseFloat((parseFloat(data.value) * data.token.rate)
+                                            .toFixed(2));
                                     }
                                 }
-                            })))));
+                                if (this.watching) {
+                                    const type = 'operation';
+                                    const id = `${type}-${address}-${data.hash}-${data.priority}`;
+                                    if (eventsEmitted[id] === undefined) {
+                                        blocksToAdd.push(data.blockNumber);
+                                        dataEvents.push({
+                                            id,
+                                            address,
+                                            data,
+                                            type
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== state.lastBlock) ||
                     blocksToAdd.length) {
@@ -409,6 +414,7 @@ class MonitorClient extends EventEmitter {
                 try {
                     const requestUrl = `${this.options.api}/getTokenInfo/${address}?apiKey=${apiKey}`;
                     const data = await got(requestUrl, { timeout: this.options.requestTimeout });
+                    await this._sleep(100);
                     if (data && data.body) {
                         const tokenData = JSON.parse(data.body);
                         if (tokenData) {

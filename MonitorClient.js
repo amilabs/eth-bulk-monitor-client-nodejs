@@ -434,16 +434,21 @@ class MonitorClient extends EventEmitter {
                             // do nothing
                         }
                         if (json && json.error && json.error.code && json.error.code === 150) {
-                            return unknownToken;
+                            delete this.tokensCacheLocks[address];
+                            result = unknownToken;
                         }
                     }
-                    if (errorCount === 0) {
-                        this.emit('exception', e);
+                    if (!result) {
+                        if (errorCount === 0) {
+                            this.emit('exception', e);
+                        }
+                        errorCount++;
+                        await this._sleep(1000);
                     }
-                    errorCount++;
-                    await this._sleep(1000);
                 }
             }
+
+            delete this.tokensCacheLocks[address];
 
             if (!result && !this.tokensCache[address]) {
                 this.emit(`Cannot get token ${address} info after ${errorCount} attempts`);
@@ -456,7 +461,6 @@ class MonitorClient extends EventEmitter {
             } else {
                 this.tokensCache[address] = { result, saveTs: Date.now() };
             }
-            delete this.tokensCacheLocks[address];
         }
         return this.tokensCache[address].result;
     }

@@ -378,7 +378,7 @@ class MonitorClient extends EventEmitter {
      */
     async getToken(address) {
         address = address.toLowerCase();
-
+        const unknownToken = { name: 'Unknown', symbol: 'Unknown', decimals: 0 };
         if (this.tokensCacheLocks[address]) {
             // If cache locked then wait repeatedly 0.3s for unlock
             let lockCheckCount = 0;
@@ -390,12 +390,6 @@ class MonitorClient extends EventEmitter {
                         if (!this.tokensCache[address]) {
                             this.emit('exception', `Error retrieving locked token ${address}, "Unknown" used`);
                         }
-                        // No data on timeout
-                        const unknownToken = {
-                            name: 'Unknown',
-                            symbol: 'Unknown',
-                            decimals: 0
-                        };
                         // Clear lock
                         delete this.tokensCacheLocks[address];
                         return (this.tokensCache[address] && this.tokensCache[address].result) ?
@@ -441,7 +435,8 @@ class MonitorClient extends EventEmitter {
             }
 
             if (!result && !this.tokensCache[address]) {
-                throw new Error(`Cannot get token ${address} info after ${errorCount} attempts`);
+                this.emit(`Cannot get token ${address} info after ${errorCount} attempts`);
+                return unknownToken;
             }
 
             // Use previously cached value on error

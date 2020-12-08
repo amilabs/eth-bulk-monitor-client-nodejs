@@ -426,6 +426,17 @@ class MonitorClient extends EventEmitter {
                         await this._sleep(1000);
                     }
                 } catch (e) {
+                    if (e.response && e.response.body) {
+                        let json = false;
+                        try {
+                            json = JSON.parse(e.response.body);
+                        } catch (jsonException) {
+                            // do nothing
+                        }
+                        if (json && json.error && json.error.code && json.error.code === 150) {
+                            return unknownToken;
+                        }
+                    }
                     if (errorCount === 0) {
                         this.emit('exception', e);
                     }

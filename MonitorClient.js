@@ -1,5 +1,4 @@
 const EventEmitter = require('events');
-const got = require('got');
 const FormData = require('form-data');
 const BigNumber = require('bignumber.js');
 
@@ -45,6 +44,9 @@ const state = {
     blocks: {}
 };
 
+// Request library instance
+let rq = null;
+
 class MonitorClient extends EventEmitter {
     /**
      * Constructor.
@@ -72,6 +74,9 @@ class MonitorClient extends EventEmitter {
             requestTimeout: 30000,
             // Watch for failed transactions/operations
             watchFailed: false,
+            // Request driver (got, axios)
+            requestDriver: 'axios',
+            // Override options
             ...options
         };
         // Try to get poolId from options
@@ -171,7 +176,7 @@ class MonitorClient extends EventEmitter {
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/getPoolAddresses/${poolId}?apiKey=${apiKey}`;
         try {
-            const data = this.processBulkAPIData(await got(url, { timeout: this.options.requestTimeout }));
+            const data = this.request('get', url);
             if (data && data.addresses && data.addresses.length) {
                 result = data.addresses;
             }
@@ -271,6 +276,7 @@ class MonitorClient extends EventEmitter {
                 const transactionsData = updatesData.transactions;
                 const operationsData = updatesData.operations;
                 if (transactionsData) {
+                    this.log('Processing transactions...');
                     const { rate } = await this.getToken(ETHAddress);
                     Object.keys(transactionsData).forEach((address) => {
                         const txData = transactionsData[address];
@@ -297,6 +303,7 @@ class MonitorClient extends EventEmitter {
                     });
                 }
                 if (operationsData) {
+                    this.log('Processing operations...');
                     const addresses = Object.keys(operationsData);
                     for (let j = 0; j < addresses.length; j++) {
                         const address = addresses[j];
@@ -348,6 +355,7 @@ class MonitorClient extends EventEmitter {
                     this.clearCachedBlocks();
                 }
                 if (dataEvents.length > 0) {
+                    this.log(`Firing ${dataEvents.length} events...`);
                     setImmediate(() => {
                         for (let i = 0; i < dataEvents.length; i++) {
                             const event = dataEvents[i];
@@ -356,6 +364,8 @@ class MonitorClient extends EventEmitter {
                             this.emit('data', event);
                         }
                     });
+                } else {
+                    this.log('No new events found');
                 }
             } catch (e) {
                 this.errors++;
@@ -366,6 +376,7 @@ class MonitorClient extends EventEmitter {
                     return;
                 }
             }
+            this.log(`Wait for ${this.options.interval} seconds before new updates check...`);
             setTimeout(this.intervalHandler(), this.options.interval * 1000);
         };
     }
@@ -384,7 +395,7 @@ class MonitorClient extends EventEmitter {
             let lockCheckCount = 0;
             if (this.tokensCacheLocks[address]) {
                 while (this.tokensCacheLocks[address]) {
-                    await this._sleep(300);
+                    await this.sleep(100);
                     lockCheckCount++;
                     if (lockCheckCount >= this.options.cacheLockCheckLimit) {
                         if (!this.tokensCache[address]) {
@@ -407,33 +418,33 @@ class MonitorClient extends EventEmitter {
             while (!result && errorCount < 3) {
                 try {
                     const requestUrl = `${this.options.api}/getTokenInfo/${address}?apiKey=${apiKey}`;
-                    const data = await got(requestUrl, { timeout: this.options.requestTimeout });
-                    await this._sleep(100);
-                    if (data && data.body) {
-                        const tokenData = JSON.parse(data.body);
-                        if (tokenData) {
-                            const { name, symbol, decimals } = tokenData;
-                            const rate = tokenData.price && tokenData.price.rate ? tokenData.price.rate : false;
-                            result = {
-                                name,
-                                symbol,
-                                decimals,
-                                rate
-                            };
-                        }
+                    const tokenData = await this.request('get', requestUrl);
+                    await this.sleep(100);
+                    if (tokenData) {
+                        this.log(`Token ${tokenData.name} successfully loaded`);
+                        const { name, symbol, decimals } = tokenData;
+                        const rate = tokenData.price && tokenData.price.rate ? tokenData.price.rate : false;
+                        result = {
+                            name,
+                            symbol,
+                            decimals,
+                            rate
+                        };
                     } else {
+                        this.log(`No data loaded for token ${address}`);
                         errorCount++;
-                        await this._sleep(1000);
+                        await this.sleep(1000);
                     }
                 } catch (e) {
-                    if (e.response && e.response.body) {
+                    if (e.response && (e.response.data || e.response.body)) {
                         let json = false;
                         try {
-                            json = JSON.parse(e.response.body);
+                            json = e.response.data ? e.response.data : JSON.parse(e.response.body);
                         } catch (jsonException) {
                             // do nothing
                         }
                         if (json && json.error && json.error.code && json.error.code === 150) {
+                            this.log(`Address ${address} is not a token contract!`);
                             delete this.tokensCacheLocks[address];
                             result = unknownToken;
                         }
@@ -443,7 +454,7 @@ class MonitorClient extends EventEmitter {
                             this.emit('exception', e);
                         }
                         errorCount++;
-                        await this._sleep(1000);
+                        await this.sleep(1000);
                     }
                 }
             }
@@ -516,7 +527,7 @@ class MonitorClient extends EventEmitter {
         const { apiKey, poolId } = this.credentials;
         const url = `${this.options.monitor}/${method}/${poolId}?apiKey=${apiKey}&period=${period}`;
         try {
-            result = this.processBulkAPIData(await got(url, { timeout: this.options.requestTimeout }));
+            result = await this.request('get', url);
         } catch (e) {
             throw new Error(`${errorMessages.request_failed} ${e.message} (${url})`);
         }
@@ -556,20 +567,30 @@ class MonitorClient extends EventEmitter {
      * @returns {Object|null}
      */
     async _postBulkAPI(method, data) {
-        const form = new FormData();
-        form.append('apiKey', this.credentials.apiKey);
+        data = data || {};
+        data.apiKey = this.credentials.apiKey;
         if (method !== 'createPool') {
-            form.append('poolId', this.credentials.poolId);
+            data.poolId = this.credentials.poolId;
         }
-        if (data && data.addresses && data.addresses.length) {
-            form.append('addresses', data.addresses.join());
+        if (data && data.addresses) {
+            data.addresses = data.addresses.join();
         }
         let result = null;
         const url = `${this.options.monitor}/${method}`;
         try {
-            const d = await got.post(url, { body: form, timeout: this.options.requestTimeout });
-            result = this.processBulkAPIData(d);
+            result = await this.request('post', url, data);
         } catch (e) {
+            if (e.response && (e.response.data || e.response.body)) {
+                let json = false;
+                try {
+                    json = e.response.data ? e.response.data : JSON.parse(e.response.body);
+                } catch (jsonException) {
+                    // do nothing
+                }
+                if (json && json.error) {
+                    this.log(`Monitor API Error [code ${json.error.code}]: ${json.error.message}`);
+                }
+            }
             throw new Error(`${url} POST ${errorMessages.request_failed} ${e.message}`);
         }
         return result;
@@ -606,12 +627,91 @@ class MonitorClient extends EventEmitter {
     }
 
     /**
+     * Makes HTTP request using got or axios library.
+     *
+     * @param {string} method
+     * @param {string} url
+     * @param {Objet} postData
+     * @returns {result}
+     */
+    async request(method, url, postData = null) {
+        let result = null;
+        let data = null;
+        const body = new FormData();
+        if (postData) {
+            Object.keys(postData).map(name => body.append(name, postData[name]));
+        }
+        const timeout = this.options.requestTimeout;
+        const startTs = Date.now();
+        switch (this.options.requestDriver) {
+        case 'got':
+            if (!rq) rq = require('got');
+            switch (method) {
+            case 'get':
+                data = await rq(url, { timeout });
+                break;
+            case 'post':
+                this.log(`${method.toUpperCase()} Request [${this.options.requestDriver}] ${url}`);
+                this.log(body);
+
+                data = await rq.post(url, { body, timeout });
+                break;
+            default:
+            }
+            if (data && data.body) {
+                result = JSON.parse(data.body);
+            }
+            break;
+        case 'axios':
+            if (!rq) rq = require('axios');
+            switch (method) {
+            case 'get':
+                data = await rq(url, { timeout });
+                break;
+            case 'post':
+                this.log(`${method.toUpperCase()} Request [${this.options.requestDriver}] ${url}`);
+                this.log(body);
+                data = await rq.post(url, body, { timeout, headers: body.getHeaders() });
+                break;
+            default:
+            }
+            if (data && data.data) {
+                result = data.data;
+            }
+            break;
+        default:
+        }
+
+        const time = ((Date.now() - startTs) / 1000).toPrecision(2);
+        this.log(`${method.toUpperCase()} Request [${this.options.requestDriver}] ${url} finished in ${time} s.`);
+        if (postData) {
+            this.log(postData);
+        }
+        if (result && result.error) {
+            throw new Error(result.error.message);
+        }
+        return result;
+    }
+
+    /**
      * Wait for N seconds in async function
      *
      * @param {int} time
      */
-    _sleep(time) {
+    sleep(time) {
+        this.log(`Sleep ${time}  ms.`);
         return new Promise(resolve => setTimeout(resolve, time));
+    }
+
+    /**
+     * Logs a message to console.
+     *
+     * @param {string} message
+     */
+    log(message) {
+        if (this.options.debug) {
+            console.log(message);
+        }
     }
 
     /**

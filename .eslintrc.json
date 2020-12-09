@@ -6,6 +6,7 @@
     "node": true
   },
   "rules": {
+    "global-require": "off",
     "no-console": "warn",
     "comma-dangle": "off",
     "no-await-in-loop": "off",

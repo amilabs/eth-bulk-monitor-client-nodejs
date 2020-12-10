@@ -343,12 +343,14 @@ class MonitorClient extends EventEmitter {
                 }
                 if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== state.lastBlock) ||
                     blocksToAdd.length) {
-                    state.lastBlock = updatesData.lastSolidBlock.block;
-                    state.lastTs = updatesData.lastSolidBlock.timestamp;
                     if (blocksToAdd.length) {
                         for (let i = 0; i < blocksToAdd.length; i++) {
                             state.blocks[blocksToAdd[i]] = true;
                         }
+                    }
+                    if (updatesData.lastSolidBlock && updatesData.lastSolidBlock.block > state.lastBlock) {
+                        state.lastBlock = updatesData.lastSolidBlock.block;
+                        state.lastTs = updatesData.lastSolidBlock.timestamp;
                     }
                     lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', state));

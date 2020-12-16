@@ -25,7 +25,9 @@ const errorMessages = {
     request_failed: 'Request failed:',
     unknown_method: 'Unknown API method',
     already_watching: 'Watching is already started, use unwatch first',
-    err_get_updates: 'Can not get last pool updates'
+    err_get_updates: 'Can not get last pool updates',
+    rq_unknown_method: 'Unknown request method',
+    rq_unknown_driver: 'Unknown request driver'
 };
 
 // Last unwatch event timestamp
@@ -659,6 +661,7 @@ class MonitorClient extends EventEmitter {
                 data = await rq.post(url, { body, timeout });
                 break;
             default:
+                throw new Error(`${errorMessages.rq_unkonwn_method} ${method}`);
             }
             if (data && data.body) {
                 result = JSON.parse(data.body);
@@ -676,12 +679,14 @@ class MonitorClient extends EventEmitter {
                 data = await rq.post(url, body, { timeout, headers: body.getHeaders() });
                 break;
             default:
+                throw new Error(`${errorMessages.rq_unkonwn_method} ${method}`);
             }
             if (data && data.data) {
                 result = data.data;
             }
             break;
         default:
+            throw new Error(`${errorMessages.rq_unkonwn_driver} ${this.options.requestDriver}`);
         }
 
         const time = ((Date.now() - startTs) / 1000).toPrecision(2);

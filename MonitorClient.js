@@ -343,20 +343,21 @@ class MonitorClient extends EventEmitter {
                         }
                     }
                 }
-                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== state.lastBlock) ||
-                    blocksToAdd.length) {
+                const lsb = updatesData.lastSolidBlock;
+                const lsbChanged = (lsb && lsb.timestamp && (lsb.block > state.lastBlock));
+                if (lsbChanged || blocksToAdd.length) {
                     if (blocksToAdd.length) {
                         for (let i = 0; i < blocksToAdd.length; i++) {
                             state.blocks[blocksToAdd[i]] = true;
                         }
                     }
-                    if (updatesData.lastSolidBlock && updatesData.lastSolidBlock.block > state.lastBlock) {
-                        state.lastBlock = updatesData.lastSolidBlock.block;
-                        state.lastTs = updatesData.lastSolidBlock.timestamp;
+                    if (lsbChanged) {
+                        state.lastBlock = lsb.block;
+                        state.lastTs = lsb.timestamp;
+                        lastUnwatchTs = lsb.timestamp;
+                        this.clearCachedBlocks();
                     }
-                    lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', state));
-                    this.clearCachedBlocks();
                 }
                 if (dataEvents.length > 0) {
                     this.log(`Firing ${dataEvents.length} events...`);

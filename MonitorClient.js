@@ -25,7 +25,9 @@ const errorMessages = {
     request_failed: 'Request failed:',
     unknown_method: 'Unknown API method',
     already_watching: 'Watching is already started, use unwatch first',
-    err_get_updates: 'Can not get last pool updates'
+    err_get_updates: 'Can not get last pool updates',
+    rq_unknown_method: 'Unknown request method',
+    rq_unknown_driver: 'Unknown request driver'
 };
 
 // Last unwatch event timestamp
@@ -341,20 +343,21 @@ class MonitorClient extends EventEmitter {
                         }
                     }
                 }
-                if ((updatesData.lastSolidBlock && updatesData.lastSolidBlock.block !== state.lastBlock) ||
-                    blocksToAdd.length) {
+                const lsb = updatesData.lastSolidBlock;
+                const lsbChanged = (lsb && lsb.timestamp && (lsb.block > state.lastBlock));
+                if (lsbChanged || blocksToAdd.length) {
                     if (blocksToAdd.length) {
                         for (let i = 0; i < blocksToAdd.length; i++) {
                             state.blocks[blocksToAdd[i]] = true;
                         }
                     }
-                    if (updatesData.lastSolidBlock && updatesData.lastSolidBlock.block > state.lastBlock) {
-                        state.lastBlock = updatesData.lastSolidBlock.block;
-                        state.lastTs = updatesData.lastSolidBlock.timestamp;
+                    if (lsbChanged) {
+                        state.lastBlock = lsb.block;
+                        state.lastTs = lsb.timestamp;
+                        lastUnwatchTs = lsb.timestamp;
+                        this.clearCachedBlocks();
                     }
-                    lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', state));
-                    this.clearCachedBlocks();
                 }
                 if (dataEvents.length > 0) {
                     this.log(`Firing ${dataEvents.length} events...`);
@@ -659,6 +662,7 @@ class MonitorClient extends EventEmitter {
                 data = await rq.post(url, { body, timeout });
                 break;
             default:
+                throw new Error(`${errorMessages.rq_unkonwn_method} ${method}`);
             }
             if (data && data.body) {
                 result = JSON.parse(data.body);
@@ -676,12 +680,14 @@ class MonitorClient extends EventEmitter {
                 data = await rq.post(url, body, { timeout, headers: body.getHeaders() });
                 break;
             default:
+                throw new Error(`${errorMessages.rq_unkonwn_method} ${method}`);
             }
             if (data && data.data) {
                 result = data.data;
             }
             break;
         default:
+            throw new Error(`${errorMessages.rq_unkonwn_driver} ${this.options.requestDriver}`);
         }
 
         const time = ((Date.now() - startTs) / 1000).toPrecision(2);

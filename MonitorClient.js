@@ -354,9 +354,9 @@ class MonitorClient extends EventEmitter {
                     if (lsbChanged) {
                         state.lastBlock = lsb.block;
                         state.lastTs = lsb.timestamp;
-                        lastUnwatchTs = lsb.timestamp;
                         this.clearCachedBlocks();
                     }
+                    lastUnwatchTs = 0;
                     setImmediate(() => this.emit('stateChanged', state));
                 }
                 if (dataEvents.length > 0) {

@@ -135,7 +135,7 @@ describe('MonitorClient test', () => {
             assert.equal(eventData.data.hash, '1001');
         });
         mon.on("stateChanged", (state) => {
-            assert.equal(Object.keys(state.blocks).length, 0);
+            assert.equal(Object.keys(state.blocks).length, 1);
             assert.equal(state.lastBlock, 1001);
             assert.equal(state.lastTs, 1001);
             mon.unwatch();

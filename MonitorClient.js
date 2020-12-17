@@ -144,7 +144,7 @@ class MonitorClient extends EventEmitter {
      * @returns {Boolean}
      */
     isBlockProcessed(blockNumber) {
-        return (state.lastBlock >= blockNumber) || (state.blocks && state.blocks[blockNumber]);
+        return (state.lastBlock > blockNumber) || (state.blocks && state.blocks[blockNumber]);
     }
 
     /**
@@ -735,7 +735,7 @@ class MonitorClient extends EventEmitter {
                 // Remove old blocks from the state
                 for (let i = 0; i < blocks.length; i++) {
                     const blockNumber = blocks[i];
-                    if (blockNumber <= state.lastBlock) {
+                    if (blockNumber < state.lastBlock) {
                         delete state.blocks[blockNumber];
                     }
                 }
@@ -744,7 +744,7 @@ class MonitorClient extends EventEmitter {
                 for (let i = 0; i < events.length; i++) {
                     const eventName = events[i];
                     const eventBlock = eventsEmitted[eventName];
-                    if (eventBlock <= state.lastBlock) {
+                    if (eventBlock < state.lastBlock) {
                         delete eventsEmitted[eventName];
                     }
                 }

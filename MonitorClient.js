@@ -344,7 +344,7 @@ class MonitorClient extends EventEmitter {
                     }
                 }
                 const lsb = updatesData.lastSolidBlock;
-                const lsbChanged = (lsb && lsb.timestamp && (lsb.block > (state.lastBlock + 5)));
+                const lsbChanged = (lsb && lsb.timestamp && (lsb.block > state.lastBlock));
                 if (lsbChanged || blocksToAdd.length) {
                     if (blocksToAdd.length) {
                         for (let i = 0; i < blocksToAdd.length; i++) {
@@ -352,7 +352,7 @@ class MonitorClient extends EventEmitter {
                         }
                     }
                     if (lsbChanged) {
-                        state.lastBlock = lsb.block - 5;
+                        state.lastBlock = lsb.block;
                         state.lastTs = lsb.timestamp;
                         this.clearCachedBlocks();
                     }

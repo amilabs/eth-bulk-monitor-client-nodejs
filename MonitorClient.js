@@ -668,6 +668,7 @@ class MonitorClient extends EventEmitter {
                 throw new Error(`${errorMessages.rq_unkonwn_method} ${method}`);
             }
             if (data && data.body) {
+                this.log(data.timings);
                 result = JSON.parse(data.body);
             }
             break;

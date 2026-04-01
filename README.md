@@ -34,7 +34,7 @@ monitorApp.init([
     '0x0000000000000000000000000000000000000001',
     '0x0000000000000000000000000000000000000002',
     '0x0000000000000000000000000000000000000003'
-]).then(() => monitorApp.watch((data) => console.log(data));
+]).then(() => monitorApp.watch((data) => console.log(data)));
 ```
 
 Voila, now we can get and process all the new transactions and ERC-20 operations for the specified addresses using just a single npm library and Node.js.
